@@ -1,0 +1,44 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Fri Mar 10 23:56:49 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top.vcd"
+[dumpfile_mtime] "Fri Mar 10 23:55:02 2023"
+[dumpfile_size] 130950
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top.gtkw"
+[timestart] 0
+[size] 1488 828
+[pos] -1 -1
+*-21.671127 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_top.
+[sst_width] 297
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 237
+@28
+tb_top.top.clk_i
+tb_top.top.reset_i
+@200
+-
+@28
+tb_top.top.qspi_sce
+tb_top.top.qspi_sck
+@22
+tb_top.top.qspi_io_i[3:0]
+tb_top.top.qspi_io_o[3:0]
+@28
+tb_top.top.qspi_io_oe
+@200
+-
+@28
+tb_top.top.nor_ce_o
+tb_top.top.nor_we_o
+tb_top.top.nor_oe_o
+@22
+tb_top.top.nor_addr_o[25:0]
+tb_top.top.nor_data_o[15:0]
+tb_top.top.nor_data_i[15:0]
+@29
+tb_top.top.nor_data_oe
+[pattern_trace] 1
+[pattern_trace] 0

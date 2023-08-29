@@ -1,0 +1,23 @@
+[tasks]
+slave_cover slave cover
+slave_bmc   slave bmc
+ctrl_cover  ctrl  cover
+ctrl_bmc    ctrl  bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+multiclock on
+depth 40
+
+[engines]
+smtbmc
+
+[script]
+read -formal qspi.v
+slave: prep -top qspi_slave
+ctrl:  prep -top qspi_ctrl
+
+[files]
+../src/qspi.v
+../src/cmd_defs.v

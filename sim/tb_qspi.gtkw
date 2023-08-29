@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Mon Mar 20 17:43:25 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_qspi.vcd"
+[dumpfile_mtime] "Mon Mar 20 17:37:45 2023"
+[dumpfile_size] 168440
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_qspi.gtkw"
+[timestart] 0
+[size] 1492 875
+[pos] -1 -1
+*-16.959427 32000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_qspi.
+[sst_width] 297
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 254
+@28
+tb_qspi.clk_i
+tb_qspi.rst_i
+@200
+-
+@28
+tb_qspi.sce_i
+tb_qspi.sck_i
+@22
+tb_qspi.sio_i[3:0]
+tb_qspi.sio_o[3:0]
+@28
+tb_qspi.sio_oe
+@200
+-
+@28
+tb_qspi.txndone
+@22
+tb_qspi.txncc[7:0]
+@28
+tb_qspi.txndir
+tb_qspi.txnmode
+@22
+tb_qspi.txndata_miso[31:0]
+tb_qspi.txndata_mosi[31:0]
+@200
+-
+@28
+tb_qspi.wb_err_o
+tb_qspi.wb_cyc_o
+tb_qspi.wb_stb_o
+tb_qspi.wb_we_o
+@22
+tb_qspi.wb_adr_o[31:0]
+tb_qspi.wb_dat_o[15:0]
+@28
+tb_qspi.wb_stall_i
+@22
+tb_qspi.wb_dat_i[15:0]
+@29
+tb_qspi.wb_ack_i
+[pattern_trace] 1
+[pattern_trace] 0

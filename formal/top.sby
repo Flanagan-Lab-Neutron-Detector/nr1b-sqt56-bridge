@@ -1,0 +1,23 @@
+[tasks]
+cover
+bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+multiclock on
+depth 150
+
+[engines]
+smtbmc
+
+[script]
+read -formal qspi.v nor_bus.v wb_nor_controller.v top.v
+prep -top top
+
+[files]
+../src/nor_bus.v
+../src/wb_nor_controller.v
+../src/top.v
+../src/qspi.v
+../src/cmd_defs.v

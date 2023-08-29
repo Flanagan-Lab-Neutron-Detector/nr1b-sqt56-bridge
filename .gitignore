@@ -1,0 +1,12 @@
+.hdl_checker/
+.vscode/
+__pycache__/
+build/
+*.vcd
+*.code-workspace
+sim/sim_build
+sim/results.xml
+sim/__pycache__
+sim/*.vcd
+formal/*_bmc
+formal/*_cover

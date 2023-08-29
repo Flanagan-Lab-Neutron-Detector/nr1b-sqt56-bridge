@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue Mar 21 16:37:37 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_nor_bus.vcd"
+[dumpfile_mtime] "Tue Mar 21 16:09:18 2023"
+[dumpfile_size] 17053
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_nor_bus.gtkw"
+[timestart] 0
+[size] 1535 801
+[pos] -1 -1
+*-18.331827 78150 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_nor_bus.
+[treeopen] tb_nor_bus.norbus.
+[sst_width] 297
+[signals_width] 212
+[sst_expanded] 1
+[sst_vpaned_height] 228
+@28
+tb_nor_bus.norbus.wb_clk_i
+tb_nor_bus.norbus.wb_rst_i
+@200
+-
+@28
+tb_nor_bus.norbus.wb_cyc_i
+tb_nor_bus.norbus.wb_stb_i
+tb_nor_bus.norbus.wb_err_i
+tb_nor_bus.norbus.wb_we_i
+@22
+tb_nor_bus.norbus.wb_adr_i[25:0]
+tb_nor_bus.norbus.wb_dat_i[15:0]
+@28
+tb_nor_bus.norbus.wb_stall_o
+@22
+tb_nor_bus.norbus.wb_dat_o[15:0]
+@28
+tb_nor_bus.norbus.wb_ack_o
+@200
+-
+@28
+tb_nor_bus.norbus.nor_ce_o
+tb_nor_bus.norbus.nor_oe_o
+tb_nor_bus.norbus.nor_we_o
+@22
+tb_nor_bus.norbus.nor_addr_o[25:0]
+tb_nor_bus.norbus.nor_data_o[15:0]
+@28
+tb_nor_bus.norbus.nor_data_oe
+@22
+tb_nor_bus.norbus.nor_data_i[15:0]
+@28
+tb_nor_bus.norbus.nor_ry_i
+[pattern_trace] 1
+[pattern_trace] 0

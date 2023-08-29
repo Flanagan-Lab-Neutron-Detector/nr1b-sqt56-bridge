@@ -1,0 +1,18 @@
+[tasks]
+cover
+bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+depth 96
+
+[engines]
+smtbmc
+
+[script]
+read -formal nor_bus.v
+prep -top nor_bus
+
+[files]
+../src/nor_bus.v

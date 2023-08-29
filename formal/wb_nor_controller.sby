@@ -1,0 +1,19 @@
+[tasks]
+cover
+bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+depth 40
+
+[engines]
+smtbmc
+
+[script]
+read -formal wb_nor_controller.v
+prep -top wb_nor_controller
+
+[files]
+../src/wb_nor_controller.v
+../src/cmd_defs.v
