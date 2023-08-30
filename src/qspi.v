@@ -59,7 +59,6 @@ module qspi_slave #(
     always @(negedge sck_i or posedge sce_i)
         if (sce_i) begin
             cycle_counter <= 'b0;
-        //end else if (reset_i || cycle_counter == txncc_i) begin
         end else if (reset_i || txndone_o) begin
             cycle_counter <= 'b0;
         end else begin
@@ -84,20 +83,15 @@ module qspi_slave #(
 
     // SPI
     always @(posedge sck_i or posedge sce_i) begin
-        //txndone_o <= 'b0;
         if (sce_i) begin
             txndata_o <= 'b0;
         end else if (reset_i) begin
             txndata_o <= 'b0;
         end else begin
-            // if this is the last cycle, signal
-            //if (cycle_counter == txncc_i) txndone_o <= 'b1;
             if (!txndir_i) begin // input
                 case (txnmode_i)
                     1'b0: txndata_o <= { txndata_o[IOREG_BITS-2:0], sio_in[0] };
                     1'b1: txndata_o <= { txndata_o[IOREG_BITS-5:0], sio_in    };
-                    //1'b0: txndata_o[cycle_counter[IOREG_INDEX_BITS-1:0]]      <= sio_in[0];
-                    //1'b1: txndata_o[4*cycle_counter[IOREG_INDEX_BITS-1:0]+:4] <= sio_in;
                 endcase
             end
         end
@@ -166,31 +160,6 @@ module qspi_slave #(
 `endif // FORMAL
 
 endmodule
-
-/*
-module qspi_phase_controller #(
-    parameter IOREG_BITS   = 32,
-    parameter WCOUNTERBITS = 8
-) (
-    input reset_i, // synchronous to clk_i
-    input clk_i,
-
-    // xSPI IF
-    output reg            [7:0] txncc_o,   // transaction cycle count minus one (e.g. txncc=3 => 4 cycles)
-    output reg                  txnmode_o, // transaction mode, 0 = single SPI with MOSI=sio_i[0] and MISO=sio_o[1], 1 = quad SPI
-    output reg                  txndir_o,  // transaction direction, 0 = read, 1 = write
-    output     [IOREG_BITS-1:0] txndata_o,
-    input      [IOREG_BITS-1:0] txndata_i,
-    input                       txndone_i, // high for one cycle when data has been received
-    input                       txnreset_i, // transaction reset (CE high)
-
-    input                 [2:0] cfg_phases, // bit 0 = has address, bit 1 = has dummy, bit 2 = has data
-    input                       cfg_write, // 1 = data is write (input), 0 = data is read (output)
-    input                       cfg_
-);
-
-endmodule
-*/
 
 `include "cmd_defs.v"
 
@@ -413,403 +382,6 @@ module qspi_ctrl_passthrough #(
 
 endmodule
 
-// TODO: Expand FSM
-// The generic transaction phase approach below is messy.
-// Instead, split into explicit states for commands.
-// Also, separate outputs from state transitions.
-
-module qspi_ctrl #(
-    parameter ADDRBITS = 26,
-    parameter DATABITS = 16,
-    parameter IOREG_BITS = 32,
-    parameter WCOUNTERBITS = 8
-) (
-    input reset_i, // synchronous to local clock
-    input clk_i, // local clock
-
-    // data inputs
-    output reg            [7:0] txncc_o,   // transaction cycle count minus one (e.g. txncc=3 => 4 cycles)
-    output reg                  txnmode_o, // transaction mode, 0 = single SPI with MOSI=sio_i[0] and MISO=sio_o[1], 1 = quad SPI
-    output reg                  txndir_o,  // transaction direction, 0 = read, 1 = write
-    output     [IOREG_BITS-1:0] txndata_o,
-    input      [IOREG_BITS-1:0] txndata_i,
-    input                       txndone_i, // high for one cycle when data has been received
-    input                       txnreset_i, // transaction reset (CE high)
-
-    // controller requests
-    output reg                  vt_mode,
-
-    // wishbone
-    output reg                  wb_cyc_o,
-    output reg                  wb_stb_o,
-    output reg                  wb_we_o,
-    output reg                  wb_err_o,
-    output reg           [31:0] wb_adr_o,
-    output reg   [DATABITS-1:0] wb_dat_o,
-    input                       wb_ack_i,
-    input                       wb_stall_i,
-    input        [DATABITS-1:0] wb_dat_i
-);
-
-    localparam QSPI_ADDR_CYCLES     = 2 * ((ADDRBITS+8-1) / 8);
-    localparam QSPI_ADDR_CYCLE_BITS = $clog2(QSPI_ADDR_CYCLES);
-    localparam QSPI_DATA_CYCLES     = (DATABITS+4-1) / 4;
-    localparam QSPI_DATA_CYCLE_BITS = $clog2(QSPI_DATA_CYCLES);
-
-    localparam [1:0] SPI_PHASE_CMD   = 2'b00,
-                     SPI_PHASE_ADDR  = 2'b01, // read in address
-                     SPI_PHASE_STALL = 2'b10, // stall while reading or writing
-                     SPI_PHASE_DATA  = 2'b11; // read in data / write out data
-
-    reg [1:0] phase; // state machine state
-    // Address may not be an even multiple of 4, so we shift in extra and discard high bits
-    reg [QSPI_ADDR_CYCLES*4-1:0] addr_in;
-    reg                    [5:0] addr_nor_cmd; // NOR command encoded into wb address
-    // latched parameters
-    reg           [7:0] cmd_q;
-    //reg          [31:0] addr_q;
-    reg  [DATABITS-1:0] data_q;
-
-    reg [IOREG_BITS-1:0] txndata_wb;
-    assign txndata_o = cmd_q == `SPI_COMMAND_LOOPBACK ? addr_in[IOREG_BITS-1:0] : txndata_wb;
-
-    wire spi_reset;
-    assign spi_reset = reset_i || txnreset_i;
-
-    // TODO: QSPI commands
-    wire cmd_is_write = cmd_q != `SPI_COMMAND_READ && cmd_q != `SPI_COMMAND_FAST_READ && cmd_q != `SPI_COMMAND_LOOPBACK;
-
-    // TODO: continuous read mode
-    // TODO: configuration
-
-    // QSPI->wb sync
-    wire wb_we_d;
-    reg wb_req_d; // d captures the signal, which is captured into q on a rising edge of clk
-    //assign wb_req_d = phase == SPI_PHASE_STALL || (phase == SPI_PHASE_DATA && cmd_q == `SPI_COMMAND_READ);
-    assign wb_we_d = cmd_is_write;
-
-    // SPI parameters
-    always @(*) begin
-        case (phase)
-            SPI_PHASE_CMD: begin
-                txnmode_o = 'b0; // single SPI
-                txndir_o  = 'b0; // input
-                txncc_o   = 'h7;
-            end
-            SPI_PHASE_ADDR: begin
-                txnmode_o = 'b1; // quad
-                txndir_o  = 'b0; // input
-                txncc_o   = QSPI_ADDR_CYCLES - 1;
-            end
-            SPI_PHASE_STALL: begin
-                txnmode_o = 'b1; // quad
-                txndir_o  = 'b0; // input
-                txncc_o   = 'h13; // 20 cycles
-            end
-            SPI_PHASE_DATA: begin
-                txnmode_o = 'b1; // qspi
-                txndir_o  = !cmd_is_write; // output if read, else input
-                txncc_o   = QSPI_DATA_CYCLES - 1;
-            end
-            default: begin // cmd
-                txnmode_o = 'b0; // single SPI
-                txndir_o  = 'b0; // input
-                txncc_o   = 'h7;
-            end
-        endcase
-    end
-
-    // Register inputs
-    always @(posedge txndone_i or posedge reset_i) begin
-        if (reset_i) begin
-            cmd_q   <= 'b0;
-            data_q  <= 'b0;
-            addr_in <= 'b0;
-        end else
-            /* verilator lint_off CASEINCOMPLETE */
-            case (phase)
-                SPI_PHASE_CMD:  cmd_q   <= txndata_i[7:0];
-                SPI_PHASE_ADDR: addr_in <= txndata_i[QSPI_ADDR_CYCLES*4-1:0];
-                SPI_PHASE_DATA: data_q  <= txndata_i[DATABITS-1:0];
-            endcase
-            /* verilator lint_on CASEINCOMPLETE */
-    end
-
-    // Request generation
-    // - Always start a request when leaving address phase
-    // - Generate a request every transaction when page programming
-    always @(posedge txndone_i or posedge reset_i) begin
-        if (reset_i)
-            wb_req_d <= 'b0;
-        //else if (txnreset_i && cmd_q == `SPI_COMMAND_PAGE_PROG)
-        //    wb_req_d <= 'b1;
-        else case (phase)
-            SPI_PHASE_CMD: begin
-                if (txndata_i[7:0] == `SPI_COMMAND_RESET)
-                    wb_req_d <= 'b1;
-                else
-                    wb_req_d <= 'b0;
-            end
-            SPI_PHASE_ADDR: begin
-                if (cmd_q == `SPI_COMMAND_PROG_WORD || cmd_q == `SPI_COMMAND_WRITE_THRU || cmd_q == `SPI_COMMAND_LOOPBACK)
-                    wb_req_d <= 'b0;
-                else
-                    wb_req_d <= 'b1;
-            end
-            SPI_PHASE_STALL:
-                wb_req_d <= 'b0;
-            SPI_PHASE_DATA: begin
-                if (cmd_q == `SPI_COMMAND_PAGE_PROG || cmd_q == `SPI_COMMAND_PROG_WORD || cmd_q == `SPI_COMMAND_WRITE_THRU)
-                    wb_req_d <= 'b1;
-                else
-                    wb_req_d <= 'b0;
-            end
-        endcase
-    end
-
-    // QSPI phases
-    always @(posedge txndone_i or posedge spi_reset) begin
-        if (spi_reset) begin
-            phase <= SPI_PHASE_CMD;
-        end else case (phase)
-            SPI_PHASE_CMD: begin
-                phase <= SPI_PHASE_ADDR;
-            end
-            SPI_PHASE_ADDR: begin
-                case (cmd_q)
-                    `SPI_COMMAND_FAST_READ: begin
-                        phase <= SPI_PHASE_STALL;
-                    end
-                    `SPI_COMMAND_PAGE_PROG: begin
-                        phase <= SPI_PHASE_STALL;
-                    end
-                    default: begin
-                        phase <= SPI_PHASE_DATA;
-                    end
-                endcase
-            end
-            SPI_PHASE_STALL: begin
-                phase <= SPI_PHASE_DATA;
-            end
-            SPI_PHASE_DATA: begin
-                // in page program we continuously read in data until CS is deasserted or the page limit is reached
-                // otherwise we always expect another command
-                // TODO: Implement page program limit
-                // TODO: other extended commands
-                if (cmd_q == `SPI_COMMAND_PAGE_PROG) begin
-                    phase <= SPI_PHASE_DATA; // be explicit: stay in data
-                end else begin
-                    phase <= SPI_PHASE_CMD;
-                end
-            end
-        endcase
-    end
-
-    // word counter
-    // in page program and cfi, count up words
-    reg [WCOUNTERBITS-1:0] word_counter;
-    always @(posedge txndone_i or posedge spi_reset)
-        if (spi_reset)
-            word_counter <= 'b0;
-        else if (cmd_q == `SPI_COMMAND_PAGE_PROG && phase == SPI_PHASE_STALL)
-            word_counter <= 'b0;
-        else
-            word_counter <= word_counter + 1;
-
-    reg txnreset_sync;
-    always @(posedge clk_i) txnreset_sync <= txnreset_i;
-
-    // VT override control
-    always @(posedge clk_i or posedge reset_i)
-        if (reset_i)
-            vt_mode <= 1'b0;
-        else if (txnreset_sync) begin
-            if (cmd_q == `SPI_COMMAND_DET_VT)
-                vt_mode <= 1'b1;
-            else if (cmd_q == `SPI_COMMAND_RESET)
-                vt_mode <= 1'b0;
-        end
-
-    // address assignment
-    //always @(*) begin
-    /*
-    always @(posedge txndone_i or posedge reset_i) begin
-        if (reset_i)
-            addr_q <= 'b0;
-        else begin
-            addr_q[31:26] <= addr_nor_cmd;
-            if (cmd_q == `SPI_COMMAND_PAGE_PROG && phase == SPI_PHASE_DATA) begin
-                addr_q[ADDRBITS-1:WCOUNTERBITS] <= 'b0;
-                addr_q[WCOUNTERBITS-1:0]        <= word_counter;
-            end else
-                addr_q[ADDRBITS-1:0] <= addr_in[ADDRBITS-1:0];
-        end
-    end
-    */
-    wire [31:0] wb_adr_d;
-    //wire [ADDRBITS-1:0] addr_count;
-    /*assign addr_count = (cmd_q == `SPI_COMMAND_PAGE_PROG && phase == SPI_PHASE_DATA) ?
-                        { {(ADDRBITS-WCOUNTERBITS){1'b0}}, word_counter } :
-                        addr_in[ADDRBITS-1:0];*/
-    assign wb_adr_d = { addr_nor_cmd, addr_in[ADDRBITS-1:0] };
-
-    // Map QSPI commands to our wb commands, encode in top six bits of addr_q
-    always @(*) case(cmd_q)
-        `SPI_COMMAND_READ:       addr_nor_cmd = `NOR_CYCLE_READ;
-        `SPI_COMMAND_FAST_READ:  addr_nor_cmd = `NOR_CYCLE_READ;
-        `SPI_COMMAND_PAGE_PROG: begin
-            if (txnreset_i)
-                                 addr_nor_cmd = `NOR_CYCLE_PROG_BUF;
-            else if (phase == SPI_PHASE_ADDR)
-                                 addr_nor_cmd = `NOR_CYCLE_WRITE_BUF;
-            else if (phase == SPI_PHASE_CMD)
-                                 addr_nor_cmd = `NOR_CYCLE_WRITE;
-            else                 addr_nor_cmd = `NOR_CYCLE_RESET;
-        end
-        `SPI_COMMAND_SECT_ERASE: addr_nor_cmd = `NOR_CYCLE_ERASE_SECTOR;
-        `SPI_COMMAND_BULK_ERASE: addr_nor_cmd = `NOR_CYCLE_ERASE_CHIP;
-        `SPI_COMMAND_RESET:      addr_nor_cmd = `NOR_CYCLE_RESET;
-        `SPI_COMMAND_PROG_WORD:  addr_nor_cmd = `NOR_CYCLE_PROGRAM;
-        `SPI_COMMAND_WRITE_THRU: addr_nor_cmd = `NOR_CYCLE_WRITE;
-        default:                 addr_nor_cmd = `NOR_CYCLE_RESET;
-    endcase
-
-    // Wishbone control
-
-    reg [1:0] wb_req_q;
-    wire      wb_req_q_posedge;
-    assign    wb_req_q_posedge = wb_req_q[0] && !wb_req_q[1];
-    always @(posedge clk_i)
-        wb_req_q <= { wb_req_q[0], wb_req_d };
-        //wb_req_q <= { wb_req_q[0], wb_req_d && txndone_i };
-
-    always @(posedge clk_i) begin
-        wb_err_o <= 1'b0;
-        if (reset_i) begin
-            wb_cyc_o <= 'b0;
-            wb_stb_o <= 'b0;
-            wb_we_o  <= 'b0;
-            wb_adr_o <= 'b0;
-            wb_dat_o <= 'b0;
-            txndata_wb <= 'b0;
-        end else begin
-            if (wb_req_q_posedge && !wb_cyc_o) begin
-                wb_cyc_o <= 1'b1;
-                wb_stb_o <= 1'b1;
-                wb_adr_o <= wb_adr_d;
-                wb_we_o  <= wb_we_d;
-                wb_dat_o <= data_q;
-            end else if (wb_cyc_o) begin
-                if (wb_ack_i) begin
-                    wb_cyc_o  <= 1'b0;
-                    wb_stb_o  <= 1'b0;
-                    //wb_data_q <= wb_dat_i;
-                    txndata_wb[DATABITS-1:0] <= wb_dat_i;
-                    // leftover bits set to zero
-                    txndata_wb[IOREG_BITS-1:DATABITS] <= 'b0;
-                end
-            end else if (txnreset_i) begin
-                wb_cyc_o <= 'b0;
-                wb_stb_o <= 'b0;
-                wb_we_o  <= 'b0;
-                wb_adr_o <= 'b0;
-                wb_dat_o <= 'b0;
-            end
-        end
-    end
-
-    // Formal verification
-`ifdef FORMAL
-
-    // past valid and reset
-    reg f_past_valid;
-    initial f_past_valid <= 1'b0;
-    always @(posedge clk_i)
-        f_past_valid <= 1'b1;
-    always @(*)
-        if (!f_past_valid) assume(reset_i);
-
-    // reset conditions
-
-    initial assume(reset_i);
-    initial assume(!txndone_i);
-
-    always @(posedge clk_i) begin
-        if (!f_past_valid || $past(reset_i)) begin
-            // reset condition
-            assume(!txndone_i);
-            assume(txndata_i == 'b0);
-        end
-	end
-
-    // wb master formal properties
-
-    // reset conditions
-    // initial reset assumption in slave properties
-    //initial assume(!wb_cyc_o);
-    //initial assume(!wb_stb_o);
-    //initial assume(!wb_err_o);
-    //initial assume(!wb_ack_i);
-
-    // requests
-
-    // only assert stb if cyc
-    always @(*) if (!reset_i && wb_stb_o) assert(wb_cyc_o);
-
-    // if there is a request on the bus and the bus is stalled, the request remains
-    always @(posedge clk_i) begin
-        if (f_past_valid && !$past(reset_i) && $past(wb_stb_o) && $past(wb_stall_i) && wb_cyc_o) begin
-            assert(wb_stb_o);
-            assert(wb_we_o  == $past(wb_we_o));
-            assume(wb_adr_o == $past(wb_adr_o));
-            if (wb_we_o)
-                assume(wb_dat_o == $past(wb_dat_o));
-        end
-    end
-
-    // within a strobe the direction does not change
-	always @(posedge clk_i)
-        if (f_past_valid && $past(wb_stb_o) && wb_stb_o)
-            assume(wb_we_o == $past(wb_we_o));
-
-    // Responses (slave guarantees)
-
-    always @(posedge clk_i) begin
-        if (f_past_valid && $past(wb_cyc_o) && !wb_cyc_o) begin
-            assume(!wb_ack_i);
-        end
-    end
-
-    always @(*) assume (!wb_ack_i || !wb_err_o);
-
-    always @(posedge clk_i) begin
-        cover(f_past_valid && !reset_i && wb_cyc_o);
-        cover(f_past_valid && !reset_i && $past(wb_cyc_o) && !wb_cyc_o && !wb_err_o);
-        cover(f_past_valid && !reset_i && wb_ack_i);
-    end
-
-    // qspi -> wb translation
-
-    // never initiate a wb transaction if ce is not asserted
-    //always @(posedge clk_i)
-    //    if (f_past_valid && !reset_i && $past(sce_i))
-    //        assert(!wb_cyc_o);
-
-    // covers: ensure things happen
-    always @(posedge txndone_i) begin
-        if (!reset_i) begin
-            cover(phase == SPI_PHASE_ADDR && cmd_q == `SPI_COMMAND_READ);
-            cover(phase == SPI_PHASE_ADDR && cmd_q == `SPI_COMMAND_FAST_READ);
-            cover(phase == SPI_PHASE_ADDR && cmd_q == `SPI_COMMAND_PAGE_PROG);
-            cover(phase == SPI_PHASE_ADDR && cmd_q == `SPI_COMMAND_BULK_ERASE);
-            cover(phase == SPI_PHASE_ADDR && cmd_q == `SPI_COMMAND_SECT_ERASE);
-        end
-    end
-
-`endif // FORMAL
-
-endmodule
-
 module qspi_ctrl_fsm #(
     parameter ADDRBITS = 26,
     parameter DATABITS = 16,
@@ -856,19 +428,6 @@ module qspi_ctrl_fsm #(
                      SPI_STATE_WRITE_THRU_DATA = 4'h5,
                      SPI_STATE_LOOPBACK_DATA   = 4'h6,
                      SPI_STATE_PAGE_PROG_DATA  = 4'h7;
-
-/*
-`define SPI_COMMAND_READ       8'h03
-`define SPI_COMMAND_FAST_READ  8'h0B
-`define SPI_COMMAND_PAGE_PROG  8'h02
-`define SPI_COMMAND_BULK_ERASE 8'h60
-`define SPI_COMMAND_SECT_ERASE 8'hD8
-`define SPI_COMMAND_PROG_WORD  8'hF2
-`define SPI_COMMAND_RESET      8'hF0
-`define SPI_COMMAND_WRITE_THRU 8'hF8
-`define SPI_COMMAND_LOOPBACK   8'hFA
-`define SPI_COMMAND_DET_VT     8'hFB
-*/
 
     // spi reset
     wire spi_reset;
@@ -920,14 +479,6 @@ module qspi_ctrl_fsm #(
         txn_config_reg[6] = { 1'b1, 1'b1, QSPI_DATA_CYCLES[7:0]-8'd1 }; // LOOPBACK DATA:   quad-SPI, output
         txn_config_reg[7] = { 1'b1, 1'b0, QSPI_DATA_CYCLES[7:0]-8'd1 }; // PAGE PROG DATA:  quad-SPI, input
     end
-
-    /*
-    always @(posedge txndone_i or posedge spi_reset)
-        if (spi_reset)
-            spi_state <= SPI_STATE_CMD;
-        else
-            spi_state <= spi_state_next;
-    */
 
     // QSPI state changes
     always @(posedge txndone_i or posedge spi_reset) begin
@@ -1017,7 +568,6 @@ module qspi_ctrl_fsm #(
                 vt_mode <= 1'b0;
         end
 
-
     // Wishbone control
 
     reg [1:0] wb_req_q;
@@ -1025,7 +575,6 @@ module qspi_ctrl_fsm #(
     assign    wb_req_q_posedge = wb_req_q[0] && !wb_req_q[1];
     always @(posedge clk_i)
         wb_req_q <= { wb_req_q[0], wb_req_d && txndone_i };
-        //wb_req_q <= { wb_req_q[0], wb_req_d && txndone_i };
 
     always @(posedge clk_i) begin
         wb_err_o <= 1'b0;
