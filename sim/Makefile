@@ -27,7 +27,8 @@ VERILOG_SOURCES = \
 	$(SRCDIR)/qspi.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/nor_bus.v \
-	$(SRCDIR)/fifo.v
+	$(SRCDIR)/fifo.v \
+	$(SRCDIR)/sync2.v
 VERILOG_SOURCES += $(SRCDIR)/tb_$(TEST).v
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

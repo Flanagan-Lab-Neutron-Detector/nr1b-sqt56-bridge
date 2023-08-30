@@ -555,12 +555,16 @@ module qspi_ctrl_fsm #(
     assign wb_we_d = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
 
     // VT mode
-    reg txnreset_sync;
-    always @(posedge clk_i) txnreset_sync <= txnreset_i;
+    //reg [1:0] txnreset_sync;
+    //always @(posedge clk_i)
+        //txnreset_sync <= { txnreset_sync[0], txnreset_i };
+    wire txnreset_sync;
+    sync2ps sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
     // VT override control
     always @(posedge clk_i or posedge reset_i)
         if (reset_i)
             vt_mode <= 1'b0;
+        //else if (txnreset_sync[1]) begin
         else if (txnreset_sync) begin
             if (cmd_in == `SPI_COMMAND_DET_VT)
                 vt_mode <= 1'b1;

@@ -15,7 +15,8 @@ V_SRC = \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/qspi.v \
 	$(SRCDIR)/wb_nor_controller.v \
-	$(SRCDIR)/fifo.v
+	$(SRCDIR)/fifo.v \
+	$(SRCDIR)/sync2.v
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
 
@@ -70,7 +71,6 @@ $(OUT_ASC): $(PIN_DEF) $(OUT_JSON) $(BUILDDIR)
 
 $(OUT_JSON): $(V_SRC) $(BUILDDIR)
 	yosys -q -e '' -c synth.tcl
-	#yosys -q -e '' -p 'synth_ice40 -top $(TOP) -json $(OUT_JSON)' $(V_SRC)
 
 $(OUT_RPT): $(OUT_ASC) $(BUILDDIR)
 	icetime -d $(DEVICE) -mtr $(OUT_RPT) $(OUT_ASC)
