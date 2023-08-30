@@ -555,16 +555,12 @@ module qspi_ctrl_fsm #(
     assign wb_we_d = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
 
     // VT mode
-    //reg [1:0] txnreset_sync;
-    //always @(posedge clk_i)
-        //txnreset_sync <= { txnreset_sync[0], txnreset_i };
     wire txnreset_sync;
     sync2ps sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
     // VT override control
     always @(posedge clk_i or posedge reset_i)
         if (reset_i)
             vt_mode <= 1'b0;
-        //else if (txnreset_sync[1]) begin
         else if (txnreset_sync) begin
             if (cmd_in == `SPI_COMMAND_DET_VT)
                 vt_mode <= 1'b1;
@@ -574,11 +570,12 @@ module qspi_ctrl_fsm #(
 
     // Wishbone control
 
-    reg [1:0] wb_req_q;
-    wire      wb_req_q_posedge;
-    assign    wb_req_q_posedge = wb_req_q[0] && !wb_req_q[1];
-    always @(posedge clk_i)
-        wb_req_q <= { wb_req_q[0], wb_req_d && txndone_i };
+    wire wb_req_q_posedge;
+    sync2pse sync_wb_req (
+        .clk(clk_i), .rst(reset_i),
+        .d(wb_req_d && txndone_i), .q(),
+        .pe(wb_req_q_posedge), .ne()
+    );
 
     always @(posedge clk_i) begin
         wb_err_o <= 1'b0;
