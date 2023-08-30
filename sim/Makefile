@@ -4,6 +4,7 @@
 
 SRCDIR ?= $(PWD)/../src
 SIMDIR ?= $(PWD)/../sim
+TB_DIR ?= $(PWD)/tb
 
 TOPLEVEL_LANG ?= verilog
 SIM ?= icarus #verilator
@@ -29,7 +30,7 @@ VERILOG_SOURCES = \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/fifo.v \
 	$(SRCDIR)/sync2.v
-VERILOG_SOURCES += $(SRCDIR)/tb_$(TEST).v
+VERILOG_SOURCES += $(TB_DIR)/tb_$(TEST).v
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
