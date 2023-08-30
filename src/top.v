@@ -42,13 +42,6 @@ module top #(
     output                    dbg_vt_mode
 );
 
-    // qspi
-    //wire [3:0] qspi_io_i;
-    //ire [3:0] qspi_io_o;
-    //ire qspi_io_oe;
-    //ssign qspi_io = qspi_io_oe ? qspi_io_o : 4'hZ;
-    //ssign qspi_io_i = qspi_io;
-
     // wb connecting qspi and nor controller
     wire wb_ctrl_cyc, wb_ctrl_stb, wb_ctrl_we, wb_ctrl_err, wb_ctrl_ack, wb_ctrl_stall;
     wire         [31:0] wb_ctrl_adr;
@@ -61,10 +54,10 @@ module top #(
     wire [DATABITS-1:0] wb_nor_dat_i;
     wire [DATABITS-1:0] wb_nor_dat_o;
 
-    reg [7:0] txncc;
     reg txnmode, txndir, txndone;
+    reg   [7:0] txncc;
     wire [31:0] txndata_mosi;
-    reg [31:0] txndata_miso;
+    reg  [31:0] txndata_miso;
 
     // WE override for VT mode control
     wire nor_we_int, vt_mode;
@@ -88,7 +81,6 @@ module top #(
         .txndata_i(txndata_mosi), .txndata_o(txndata_miso)
     );
 
-    //qspi_ctrl qspi_ctrl (
     qspi_ctrl_fsm qspi_ctrl (
         // general
         .reset_i(reset_i), .clk_i(clk_i),
@@ -103,22 +95,6 @@ module top #(
         .wb_dat_i(wb_ctrl_dat_o)
     );
 
-    /*
-    wb_nor_controller #(.ADDRBITS(26), .DATABITS(16)) nor_ctrl (
-        .wb_rst_i(reset_i), .wb_clk_i(clk_i),
-
-        .wbs_adr_i(wb_ctrl_adr), .wbs_dat_i(wb_ctrl_dat_i),
-        .wbs_we_i(wb_ctrl_we), .wbs_stb_i(wb_ctrl_stb), .wbs_cyc_i(wb_ctrl_cyc),
-        .wbs_err_i(wb_ctrl_err), .wbs_ack_o(wb_ctrl_ack),
-        .wbs_dat_o(wb_ctrl_dat_o), .wbs_stall_o(wb_ctrl_stall),
-
-        .wbm_adr_o(wb_nor_adr), .wbm_dat_o(wb_nor_dat_o),
-        .wbm_we_o(wb_nor_we), .wbm_cyc_o(wb_nor_cyc), .wbm_stb_o(wb_nor_stb),
-        .wbm_err_o(wb_nor_err), .wbm_ack_i(wb_nor_ack),
-        .wbm_dat_i(wb_nor_dat_i), .wbm_stall_i(wb_nor_stall)
-    );
-    */
-
     wb_nor_controller #(.ADDRBITS(26), .DATABITS(16)) nor_ctrl (
         .wb_rst_i(reset_i), .wb_clk_i(clk_i),
 
@@ -133,10 +109,7 @@ module top #(
         .wbm_dat_i(wb_nor_dat_i), .wbm_stall_i(wb_nor_stall)
     );
 
-
-    nor_bus #(
-        .ADDRBITS(26), .DATABITS(16)
-    ) norbus (
+    nor_bus #(.ADDRBITS(26), .DATABITS(16)) norbus (
         .wb_rst_i(reset_i), .wb_clk_i(clk_i),
         .wb_adr_i(wb_nor_adr), .wb_dat_i(wb_nor_dat_o),
         .wb_we_i(wb_nor_we), .wb_stb_i(wb_nor_stb), .wb_cyc_i(wb_nor_cyc),
