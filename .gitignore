@@ -10,3 +10,4 @@ sim/__pycache__
 sim/*.vcd
 formal/*_bmc
 formal/*_cover
+formal/*_prove
