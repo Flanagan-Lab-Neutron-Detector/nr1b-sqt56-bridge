@@ -42,8 +42,8 @@ async def spi_write_msb(sio_i, sck, data: int, mode: SPI_MODE, cycles: int, init
 
 spi_write = spi_write_msb
 
-async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, log=lambda s: None) -> None:
-    sce.value = 0
+async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -57,14 +57,14 @@ async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, log=
     await spi_write(sio_i, sck, data, SPI_MODE.QUAD, 4)
 
     sck_task.kill()
-    sce.value = 1
+    sce.value = not sce_pol
     sck.value = 0
     await Timer(1, 'ns')
 
     log("[qspi.prog_word] done")
 
-async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, log=lambda s: None) -> None:
-    sce.value = 0
+async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -78,13 +78,13 @@ async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, 
     await spi_write(sio_i, sck, data, SPI_MODE.QUAD, 4)
 
     sck_task.kill()
-    sce.value = 1
+    sce.value = not sce_pol
     sck.value = 0
     await Timer(1, 'ns')
     log("[qspi.write_through] done")
 
-async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 108, log=lambda s: None) -> None:
-    sce.value = 0
+async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 108, sce_pol=0, log=lambda s: None) -> None:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -104,12 +104,12 @@ async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 
         await spi_write(sio_i, sck, w, SPI_MODE.QUAD, 4)
 
     sck_task.kill()
-    sce.value = 1
+    sce.value = not sce_pol
     sck.value = 0
     await Timer(1, 'ns')
 
-async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, log=lambda s: None) -> None:
-    sce.value = 0
+async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -130,12 +130,12 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, log=lambda s: 
 
     sck_task.kill()
     sck.value = 0
-    sce.value = 1
+    sce.value = not sce_pol
     await Timer(1, 'ns')
 
-async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, stall: int, log=lambda s: None) -> int:
-    sce.value = 0
-    await Timer(2, 'ns')
+async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    sce.value = sce_pol
+    await Timer(2 + toff, 'ns')
 
     sck_task = start_sck(sck, freq)
     #await ClockCycles(sck, 1)
@@ -163,22 +163,22 @@ async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, sta
     sck_task.kill()
     sck.value = 0
     await Timer(9, 'ns')
-    sce.value = 1
+    sce.value = not sce_pol
     await Timer(1, 'ns')
 
     return word
 
-async def read_fast(sio_i, sio_o, sck, sce, addr: int, freq: float = 108, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x0B, stall=20, log=log)
+async def read_fast(sio_i, sio_o, sck, sce, addr: int, freq: float = 108, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x0B, stall=20, sce_pol=sce_pol, log=log)
 
-async def read_slow(sio_i, sio_o, sck, sce, addr: int, freq: float = 50, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x03, stall=0, log=log)
+async def read_slow(sio_i, sio_o, sck, sce, addr: int, freq: float = 50, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x03, stall=0, sce_pol=sce_pol, log=log)
 
-async def loopback(sio_i, sio_o, sck, sce, addr: int, freq: float=100, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0xFA, stall=0, log=log)
+async def loopback(sio_i, sio_o, sck, sce, addr: int, freq: float=100, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
 
-async def enter_vt(sio_i, sck, sce, freq: float=60, log=lambda s: None) -> int:
-    sce.value = 0
+async def enter_vt(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -188,12 +188,12 @@ async def enter_vt(sio_i, sck, sce, freq: float=60, log=lambda s: None) -> int:
 
     sck_task.kill()
     sck.value = 0
-    sce.value = 1
+    sce.value = not sce_pol
     await Timer(1, 'ns')
     log("[qspi.enter_vt] done")
 
-async def reset(sio_i, sck, sce, freq: float=60, log=lambda s: None) -> int:
-    sce.value = 0
+async def reset(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
+    sce.value = sce_pol
     await Timer(2, 'ns')
 
     sck_task = start_sck(sck, freq)
@@ -203,6 +203,6 @@ async def reset(sio_i, sck, sce, freq: float=60, log=lambda s: None) -> int:
 
     sck_task.kill()
     sck.value = 0
-    sce.value = 1
+    sce.value = not sce_pol
     await Timer(1, 'ns')
     log("[qspi.reset] done")

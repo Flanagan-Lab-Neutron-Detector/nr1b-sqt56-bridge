@@ -1,0 +1,62 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Fri Sep  1 22:07:28 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_phy.vcd"
+[dumpfile_mtime] "Fri Sep  1 17:19:06 2023"
+[dumpfile_size] 163065
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_phy.gtkw"
+[timestart] 0
+[size] 1543 808
+[pos] -1 -1
+*-15.893516 135700 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_xspi_phy.
+[treeopen] tb_xspi_phy.qspi_ctrl.
+[sst_width] 297
+[signals_width] 248
+[sst_expanded] 1
+[sst_vpaned_height] 230
+@28
+tb_xspi_phy.rst_i
+tb_xspi_phy.clk_i
+@200
+-
+@28
+tb_xspi_phy.sce_i
+tb_xspi_phy.spi_ce_nrst
+tb_xspi_phy.sck_i
+@22
+tb_xspi_phy.sio_i[7:0]
+tb_xspi_phy.sio_o[7:0]
+@28
+tb_xspi_phy.sio_oe
+@200
+-
+@28
+tb_xspi_phy.txndone
+@22
+tb_xspi_phy.txncc[7:0]
+tb_xspi_phy.txnbc[7:0]
+@28
+tb_xspi_phy.txndir
+tb_xspi_phy.txnmode
+@22
+tb_xspi_phy.txndata_miso[31:0]
+tb_xspi_phy.txndata_mosi[31:0]
+@200
+-
+@28
+tb_xspi_phy.wb_cyc_o
+tb_xspi_phy.wb_stb_o
+tb_xspi_phy.wb_we_o
+tb_xspi_phy.wb_err_o
+@22
+tb_xspi_phy.wb_adr_o[31:0]
+tb_xspi_phy.wb_dat_o[15:0]
+@23
+tb_xspi_phy.wb_dat_i[15:0]
+@28
+tb_xspi_phy.wb_stall_i
+tb_xspi_phy.wb_ack_i
+[pattern_trace] 1
+[pattern_trace] 0

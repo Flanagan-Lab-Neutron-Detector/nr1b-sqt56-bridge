@@ -1,0 +1,23 @@
+[tasks]
+cover
+bmc
+prove
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+prove: mode prove
+#multiclock on
+depth 70
+append 1
+
+[engines]
+smtbmc
+
+[script]
+read -formal xspi_phy.v
+prep -top xspi_phy_slave
+clk2fflogic
+
+[files]
+../src/xspi_phy.v
