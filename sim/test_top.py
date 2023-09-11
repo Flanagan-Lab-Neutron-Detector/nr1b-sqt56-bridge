@@ -6,7 +6,8 @@ from test_helpers import nor, qspi
 async def setup(dut):
     """Setup DUT"""
 
-    cocotb.start_soon(Clock(dut.clk_i, 20.83, units="ns").start())
+    T = 21.5 # 46.5 MHz
+    cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
     dut.qspi_io_i.value = 0
     dut.qspi_sce.value = 1
