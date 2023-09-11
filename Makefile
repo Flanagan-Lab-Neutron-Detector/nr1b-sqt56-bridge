@@ -20,6 +20,9 @@ V_SRC = \
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
 
+SYN_TOP ?= top
+export SYN_TOP # expose to synth_gl.tcl
+
 # nextpnr
 PIN_DEF ?= $(SRCDIR)/pins.pcf
 DEVICE ?= hx8k
@@ -37,11 +40,13 @@ OUT_BIN = $(BUILDDIR)/$(DESIGN_NAME).bin
 OUT_RPT = $(BUILDDIR)/$(DESIGN_NAME).rpt
 OUT_ASC = $(BUILDDIR)/$(DESIGN_NAME).asc
 OUT_JSON = $(BUILDDIR)/$(DESIGN_NAME).json
+OUT_SYN_JSON = $(BUILDDIR)/$(DESIGN_NAME)_syn.json
 OUT_SYN_V = $(BUILDDIR)/$(DESIGN_NAME)_syn.v
 OUT_REPORT_JSON = $(BUILDDIR)/$(DESIGN_NAME)_report.json
 OUT_PLACE_SVG = $(BUILDDIR)/$(DESIGN_NAME)_placement.svg
 OUT_ROUTE_SVG = $(BUILDDIR)/$(DESIGN_NAME)_routing.svg
 export OUT_JSON # expose to synth.tcl
+export OUT_SYN_JSON # expose to synth_gl.tcl
 
 # seed nonsense
 NEXTPNR_EXPERIMENTAL ?= --tmg-ripup #--opt-timing # 56.6 145.8
@@ -72,8 +77,11 @@ $(OUT_ASC): $(PIN_DEF) $(OUT_JSON) $(BUILDDIR)
 $(OUT_JSON): $(V_SRC) $(BUILDDIR)
 	yosys -q -e '' -c synth.tcl
 
+$(OUT_SYN_JSON): $(V_SRC) $(BUILDDIR)
+	yosys -q -e '' -c synth_gl.tcl
+
 $(OUT_RPT): $(OUT_ASC) $(BUILDDIR)
 	icetime -d $(DEVICE) -mtr $(OUT_RPT) $(OUT_ASC)
 
-$(OUT_SYN_V): $(OUT_JSON)
-	yosys -q -p 'read_json $(OUT_JSON); write_verilog $(OUT_SYN_V)'
+$(OUT_SYN_V): $(OUT_SYN_JSON)
+	yosys -q -p 'read_json $(OUT_SYN_JSON); write_verilog $(OUT_SYN_V)'
