@@ -6,7 +6,7 @@ from test_helpers import nor, qspi
 async def setup(dut):
     """Setup DUT"""
 
-    cocotb.start_soon(Clock(dut.clk_i, 15.63, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk_i, 20.83, units="ns").start())
 
     dut.qspi_io_i.value = 0
     dut.qspi_sce.value = 1
@@ -47,7 +47,7 @@ async def test_read(dut):
 
     # test some reads
     for i in range(4):
-        ret_val = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 1024*64*i, freq=40)
+        ret_val = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 1024*64*i, freq=22)
         assert ret_val == 0xFFFF
         await ClockCycles(dut.clk_i, 1)
 
@@ -79,7 +79,7 @@ async def test_program(dut):
     # send program
     pa = 0x0000400
     pd = 0x3456
-    await qspi.prog_word(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, log=dut._log.info)
+    await qspi.prog_word(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, freq=22, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
 
     # now wait until ready with timeout at 100us
@@ -138,7 +138,7 @@ async def test_erase(dut):
 
     # send erase
     #await wb.write(wb_bus, c, 0x1234)
-    await qspi.erase_sect(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, sector_address)
+    await qspi.erase_sect(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, sector_address, freq=22)
     await ClockCycles(dut.clk_i, 1)
 
     await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
@@ -178,13 +178,13 @@ async def test_write_through(dut):
     # send write through (enter CFI)
     pa = 0x55
     pd = 0x98
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, freq=22, log=dut._log.info)
     await ClockCycles(dut.clk_i, 10)
 
     # Now we can read CFI data. First three words are 0x0051 0x0052 0x0059
-    Q = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x10, freq=40, log=dut._log.info)
-    R = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x11, freq=40, log=dut._log.info)
-    Y = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x12, freq=40, log=dut._log.info)
+    Q = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x10, freq=22, log=dut._log.info)
+    R = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x11, freq=22, log=dut._log.info)
+    Y = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x12, freq=22, log=dut._log.info)
     assert Q == 0x0051
     assert R == 0x0052
     assert Y == 0x0059
@@ -192,13 +192,13 @@ async def test_write_through(dut):
     # exit CFI
     pa = 0
     pd = 0xF0
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, pa, pd, freq=22, log=dut._log.info)
     await ClockCycles(dut.clk_i, 10)
 
     # read array data
-    Q = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x10, freq=40, log=dut._log.info)
-    R = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x11, freq=40, log=dut._log.info)
-    Y = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x12, freq=40, log=dut._log.info)
+    Q = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x10, freq=22, log=dut._log.info)
+    R = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x11, freq=22, log=dut._log.info)
+    Y = await qspi.read_fast(dut.qspi_io_i, dut.qspi_io_o, dut.qspi_sck, dut.qspi_sce, 0x12, freq=22, log=dut._log.info)
     assert Q == 0xFFFF
     assert R == 0xFFFF
     assert Y == 0xFFFF
@@ -227,17 +227,17 @@ async def test_vt_enter(dut):
     await ClockCycles(dut.clk_i, 1)
 
     # send write through sequence
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x80, freq=30, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x80, freq=22, log=dut._log.info)
     await Timer(300, 'ns')
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x01, freq=30, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x01, freq=22, log=dut._log.info)
     await Timer(300, 'ns')
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x80, freq=30, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x80, freq=22, log=dut._log.info)
     await Timer(300, 'ns')
-    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x12, freq=30, log=dut._log.info)
+    await qspi.write_through(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, 0, 0x12, freq=22, log=dut._log.info)
 
     await Timer(1, 'us')
     # send VT enter
-    await qspi.enter_vt(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce)
+    await qspi.enter_vt(dut.qspi_io_i, dut.qspi_sck, dut.qspi_sce, freq=22)
     await ClockCycles(dut.clk_i, 5)
     assert dut.nor_we_o.value == 0
 
