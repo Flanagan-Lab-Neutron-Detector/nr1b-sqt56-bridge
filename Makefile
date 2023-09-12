@@ -13,6 +13,7 @@ V_SRC = \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/nor_bus.v \
+	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/qspi.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/fifo.v \
