@@ -139,17 +139,13 @@ module xspi_phy_slave #(
         2'b11: sio_o =         txndata_i[8*outdata_index[WORD_SIZE_BITS-1:0]+:8];
     endcase
 
-    always @(posedge sck_i or posedge sce_i_b) begin
-        if (sce_i_b) begin
-            txndata_o <= 'b0;
-        end else begin
-            case (txnmode_i)
-                2'b00: txndata_o <= { txndata_o[WORD_SIZE-2:0], sio_i[0:0] };
-                2'b01: txndata_o <= { txndata_o[WORD_SIZE-3:0], sio_i[1:0] };
-                2'b10: txndata_o <= { txndata_o[WORD_SIZE-5:0], sio_i[3:0] };
-                2'b11: txndata_o <= { txndata_o[WORD_SIZE-9:0], sio_i[7:0] };
-            endcase
-        end
+    always @(posedge sck_i) begin
+        case (txnmode_i)
+            2'b00: txndata_o <= { txndata_o[WORD_SIZE-2:0], sio_i[0:0] };
+            2'b01: txndata_o <= { txndata_o[WORD_SIZE-3:0], sio_i[1:0] };
+            2'b10: txndata_o <= { txndata_o[WORD_SIZE-5:0], sio_i[3:0] };
+            2'b11: txndata_o <= { txndata_o[WORD_SIZE-9:0], sio_i[7:0] };
+        endcase
     end
 
 `ifdef FORMAL
