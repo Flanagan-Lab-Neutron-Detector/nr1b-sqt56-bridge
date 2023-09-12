@@ -41,12 +41,12 @@ module tb_xspi_phy #(
     end
 `else
     // dumps the trace to a vcd file that can be viewed with GTKWave
-    integer i;
+    //integer i;
     initial begin
         $dumpfile ("tb_xspi_phy.vcd");
         $dumpvars (0, tb_xspi_phy);
-        for (i = 0; i < 16; i = i + 1)
-            $dumpvars(1, qspi_ctrl.txn_config_reg[i]);
+        //for (i = 0; i < 16; i = i + 1)
+            //$dumpvars(1, qspi_ctrl.txn_config_reg[i]);
         #1;
     end
 `endif
@@ -60,9 +60,8 @@ module tb_xspi_phy #(
         if (!r_dumpb[1] &&  r_dumpb[0]) $dumpoff; // rising edge
     end
 
-    wire [7:0] txnbc;
-    reg  [7:0] txncc;
-    reg        txnmode;
+    reg  [5:0] txnbc;
+    reg  [1:0] txnmode;
     reg        txndir, txndone;
     reg [31:0] txndata_mosi;
     reg [31:0] txndata_miso;
@@ -70,14 +69,11 @@ module tb_xspi_phy #(
     wire spi_ce_nrst;
     assign spi_ce_nrst = sce_i && !rst_i;
 
-    assign txnbc = txncc << { txnmode, 1'b0 };
-
     xspi_phy_slave #(
-        .WORD_SIZE(32),
-        .CYCLE_COUNT_BITS(8)
+        .CYCLE_COUNT_BITS(6)
     ) xspi_phy_slave (
         .sck_i(sck_i), .sce_i(spi_ce_nrst), .sio_i(sio_i), .sio_o(sio_o), .sio_oe(sio_oe),
-        .txnbc_i(txnbc), .txnmode_i({txnmode, 1'b0}), .txndir_i(txndir), .txndone_o(txndone),
+        .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndone_o(txndone),
         .txndata_i(txndata_mosi), .txndata_o(txndata_miso)
     );
 
@@ -86,12 +82,13 @@ module tb_xspi_phy #(
         // general
         .reset_i(rst_i), .clk_i(clk_i),
         // spi slave
-        .txncc_o(txncc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
+        .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!sce_i),
         // wb
         .wb_cyc_o(wb_cyc_o), .wb_stb_o(wb_stb_o), .wb_we_o(wb_we_o), .wb_err_o(wb_err_o),
         .wb_adr_o(wb_adr_o), .wb_dat_o(wb_dat_o), .wb_ack_i(wb_ack_i), .wb_stall_i(wb_stall_i),
-        .wb_dat_i(wb_dat_i)
+        .wb_dat_i(wb_dat_i),
+        .vt_mode()
     );
 
 endmodule

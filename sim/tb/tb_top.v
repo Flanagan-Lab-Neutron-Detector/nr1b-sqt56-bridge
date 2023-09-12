@@ -11,11 +11,11 @@ module tb_top (
     input rst_i, clk_i,
 
     // QSPI interface
-    input               [3:0] qspi_io_i,
-    output              [3:0] qspi_io_o,
-    output                    qspi_io_oe,
-    input                     qspi_sck,
-    input                     qspi_sce,
+    input               [7:0] pad_spi_io_i,
+    output              [7:0] pad_spi_io_o,
+    output                    pad_spi_io_oe,
+    input                     pad_spi_sck_i,
+    input                     pad_spi_sce_i,
 
     // wishbone
     input  [31:0] wb_adr_i,
@@ -53,8 +53,8 @@ module tb_top (
     top top (
         .reset_i(rst_i), .clk_i(clk_i),
         // qspi
-        .qspi_io_i(qspi_io_i), .qspi_io_o(qspi_io_o), .qspi_io_oe(qspi_io_oe),
-        .qspi_sck(qspi_sck), .qspi_sce(qspi_sce),
+        .pad_spi_io_i(pad_spi_io_i), .pad_spi_io_o(pad_spi_io_o), .pad_spi_io_oe(pad_spi_io_oe),
+        .pad_spi_sck_i(pad_spi_sck_i), .pad_spi_sce_i(pad_spi_sce_i),
         // nor
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i),
         .nor_data_o(nor_data_o), .nor_addr_o(nor_addr_o),
@@ -62,7 +62,7 @@ module tb_top (
         .nor_data_oe(nor_data_oe),
         // debug
         .dbg_txnmode(), .dbg_txndir(), .dbg_txndone(),
-        .dbg_txncc(), .dbg_txnmiso(), .dbg_txnmosi(),
+        .dbg_txnbc(), .dbg_txnmiso(), .dbg_txnmosi(),
         .dbg_wb_ctrl_stb(), .dbg_wb_nor_stb(), .dbg_vt_mode()
     );
 
