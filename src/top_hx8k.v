@@ -54,8 +54,9 @@ module top_hx8k (
     reg nor_dq_oe;
 
     // Debug outputs
-    reg        dbg_txnmode, dbg_txndir, dbg_txndone;
-    reg  [7:0] dbg_txncc;
+    reg        dbg_txndir, dbg_txndone;
+    reg  [1:0] dbg_txnmode;
+    reg  [5:0] dbg_txnbc;
     reg [31:0] dbg_txnmosi, dbg_txnmiso;
     wire       dbg_wb_ctrl_stb;
     wire       dbg_wb_nor_stb;
@@ -112,7 +113,7 @@ module top_hx8k (
 
     // QSPI pins
 
-    wire [3:0] qspi_io_i, qspi_io_o;
+    wire [7:0] qspi_io_i, qspi_io_o;
     wire qspi_io_oe;
     /*
     assign qspi_io_i = { QSPI_IO0, QSPI_IO1, QSPI_IO2, QSPI_IO3 };
@@ -166,6 +167,8 @@ module top_hx8k (
         .D_OUT_0(qspi_io_o[3]),
         .D_IN_0(qspi_io_i[3])
     );
+
+    assign qspi_io_i[7:4] = 4'h0; // octal is not supported
 
     // NOR DQ
 
@@ -392,15 +395,15 @@ module top_hx8k (
     top top (
         .reset_i(!int_reset_n), .clk_i(sysclk),
         // QSPI
-        .qspi_io_i(qspi_io_i), .qspi_io_o(qspi_io_o), .qspi_io_oe(qspi_io_oe),
-        .qspi_sck(QSPI_SCK), .qspi_sce(QSPI_CS),
+        .pad_spi_io_i(qspi_io_i), .pad_spi_io_o(qspi_io_o), .pad_spi_io_oe(qspi_io_oe),
+        .pad_spi_sck_i(QSPI_SCK), .pad_spi_sce_i(QSPI_CS),
         // NOR
         .nor_addr_o(nor_addr), .nor_data_i(nor_dq_i), .nor_data_o(nor_dq_o),
         .nor_data_oe(nor_dq_oe), .nor_ry_i(NOR_RY_BY),
         .nor_ce_o(NOR_CE), .nor_we_o(NOR_WE), .nor_oe_o(nor_oe_o),
         // debug
         .dbg_txnmode(dbg_txnmode), .dbg_txndir(dbg_txndir), .dbg_txndone(dbg_txndone),
-        .dbg_txncc(dbg_txncc), .dbg_txnmosi(dbg_txnmosi), .dbg_txnmiso(dbg_txnmiso),
+        .dbg_txnbc(dbg_txnbc), .dbg_txnmosi(dbg_txnmosi), .dbg_txnmiso(dbg_txnmiso),
         .dbg_wb_ctrl_stb(dbg_wb_ctrl_stb), .dbg_wb_nor_stb(dbg_wb_nor_stb), .dbg_vt_mode(dbg_vt_mode)
     );
 

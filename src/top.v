@@ -16,12 +16,11 @@ module top #(
     input reset_i, clk_i,
 
     // QSPI interface
-    //inout               [3:0] qspi_io,
-    input               [3:0] qspi_io_i,
-    output              [3:0] qspi_io_o,
-    output                    qspi_io_oe,
-    input                     qspi_sck,
-    input                     qspi_sce,
+    input               [7:0] pad_spi_io_i,
+    output              [7:0] pad_spi_io_o,
+    output                    pad_spi_io_oe,
+    input                     pad_spi_sck_i,
+    input                     pad_spi_sce_i,
 
     // NOR interface
     input                     nor_ry_i,
@@ -34,13 +33,21 @@ module top #(
     output reg                nor_data_oe, // 0 = input, 1 = output
 
     // debug
-    output                    dbg_txnmode, dbg_txndir, dbg_txndone,
-    output              [7:0] dbg_txncc,
+    output                    dbg_txndir, dbg_txndone,
+    output              [1:0] dbg_txnmode,
+    output              [5:0] dbg_txnbc,
     output             [31:0] dbg_txnmosi, dbg_txnmiso,
     output                    dbg_wb_ctrl_stb,
     output                    dbg_wb_nor_stb,
     output                    dbg_vt_mode
 );
+
+    // SPI IO <-> SPI PHY
+    wire                [7:0] spi_io_i;
+    wire                [7:0] spi_io_o;
+    wire                      spi_io_oe;
+    wire                      spi_sck;
+    wire                      spi_sce;
 
     // wb connecting qspi and nor controller
     wire wb_ctrl_cyc, wb_ctrl_stb, wb_ctrl_we, wb_ctrl_err, wb_ctrl_ack, wb_ctrl_stall;
@@ -54,8 +61,9 @@ module top #(
     wire [DATABITS-1:0] wb_nor_dat_i;
     wire [DATABITS-1:0] wb_nor_dat_o;
 
-    reg txnmode, txndir, txndone;
-    reg   [7:0] txncc;
+    reg         txndir, txndone;
+    reg   [1:0] txnmode;
+    reg   [5:0] txnbc;
     wire [31:0] txndata_mosi;
     reg  [31:0] txndata_miso;
 
@@ -67,26 +75,43 @@ module top #(
     assign dbg_txnmode = txnmode;
     assign dbg_txndir  = txndir;
     assign dbg_txndone = txndone;
-    assign dbg_txncc   = txncc;
+    assign dbg_txnbc   = txnbc;
     assign dbg_txnmosi = txndata_mosi;
     assign dbg_txnmiso = txndata_miso;
     assign dbg_wb_ctrl_stb = wb_ctrl_stb;
     assign dbg_wb_nor_stb = wb_nor_stb;
     assign dbg_vt_mode = vt_mode;
 
-    qspi_slave qspi_slave (
-        .reset_i(reset_i), .clk_i(clk_i),
-        .sck_i(qspi_sck), .sce_i(qspi_sce), .sio_i(qspi_io_i), .sio_o(qspi_io_o), .sio_oe(qspi_io_oe),
-        .txncc_i(txncc), .txnmode_i(txnmode), .txndir_i(txndir), .txndone_o(txndone),
-        .txndata_i(txndata_mosi), .txndata_o(txndata_miso)
+    xspi_phy_io #(
+        .IO_POL(1),
+        .CE_POL(0)
+    ) xspi_phy_io (
+        .i_pad_sck(pad_spi_sck_i), .i_pad_sce(pad_spi_sce_i),
+        .i_pad_sio(pad_spi_io_i), .o_pad_sio(pad_spi_io_o),
+        .o_pad_sio_oe(pad_spi_io_oe),
+        .o_sck(spi_sck), .o_sce(spi_sce), .o_sio(spi_io_i),
+        .i_sio(spi_io_o), .i_sio_oe(spi_io_oe)
     );
 
-    qspi_ctrl_fsm qspi_ctrl (
+    xspi_phy_slave #(
+        .WORD_SIZE(32),
+        .CYCLE_COUNT_BITS(6)
+    ) xspi_slave (
+        .sck_i(spi_sck), .sce_i(spi_sce), .sio_oe(spi_io_oe), .sio_i(spi_io_i), .sio_o(spi_io_o),
+        .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndata_i(txndata_mosi),
+        .txndata_o(txndata_miso), .txndone_o(txndone)
+    );
+
+    qspi_ctrl_fsm #(
+        .ADDRBITS(26),
+        .DATABITS(16),
+        .IOREG_BITS(32)
+    ) qspi_ctrl (
         // general
         .reset_i(reset_i), .clk_i(clk_i),
         // spi slave
-        .txncc_o(txncc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
-        .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(qspi_sce),
+        .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
+        .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
         // control
         .vt_mode(vt_mode),
         // wb
