@@ -59,9 +59,13 @@ module qspi_ctrl_fsm #(
                      SPI_STATE_LOOPBACK_DATA   = 3'h6,
                      SPI_STATE_PAGE_PROG_DATA  = 3'h7;
 
+    // synchronize SPI -> sys
+    wire wstb, wstb_pe;
+    wire txnreset_sync;
+
     // spi reset
     wire spi_reset;
-    assign spi_reset = reset_i || txnreset_i;
+    assign spi_reset = reset_i || txnreset_sync;
 
     // SPI state
     reg [2:0] spi_state_next;
@@ -72,9 +76,8 @@ module qspi_ctrl_fsm #(
     reg [ADDRBITS-1:0] addr_q;
     reg [DATABITS-1:0] data_q;
 
-    // wb control and sync
-    reg wb_req_d; // wb sync signal
-    // reduce data width (e.g. from 32bits to 24)
+    // wb control
+    reg wb_req;
     // cmd is txndata_i[7:0] on command cycle since cmd_q has not been latched
     wire                      [7:0] cmd_q;
     assign cmd_q = (spi_state == SPI_STATE_CMD) ? txndata_i[7:0] : cmd_in[7:0];
@@ -83,7 +86,7 @@ module qspi_ctrl_fsm #(
     wire [31:0] wb_adr_d;
     assign wb_adr_d = { nor_cmd, addr_q };
     // write direction
-    wire wb_we_d;
+    wire wb_we;
     // WB out data
     reg [IOREG_BITS-1:0] txndata_wb;
     assign txndata_o = (cmd_in == `SPI_COMMAND_LOOPBACK) ? { {(IOREG_BITS-ADDRBITS){1'b0}}, addr_q } : txndata_wb;
@@ -108,11 +111,25 @@ module qspi_ctrl_fsm #(
         txn_config_reg[7] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // PAGE PROG DATA:    quad-SPI, input
     end
 
+    // synchronize to txndone rising edge (word strobe)
+    sync2pse sync_wstb (
+        .clk(clk_i), .rst(reset_i),
+        .d(txndone_i), .q(wstb),
+        .pe(wstb_pe), .ne()
+    );
+
+    // sync txnreset (ce deassertion) to sys domain
+    // reset value should be 1
+    sync2ps #(.R(1)) sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
+
+    // Trigger on wstb to save the one clock delay introducted by
+    // @(posedge clk_i) if (wstb_pe). This is not recommended for an FPGA and
+    // may cause issues.
+
     // QSPI state changes
-    always @(posedge txndone_i or posedge spi_reset) begin
-        if (spi_reset) begin
-            spi_state <= SPI_STATE_CMD;
-        end else case (spi_state)
+    always @(posedge wstb or posedge spi_reset) begin
+        if (spi_reset) spi_state <= SPI_STATE_CMD;
+        else case (spi_state)
             SPI_STATE_CMD:               spi_state <= SPI_STATE_ADDR;
             SPI_STATE_ADDR: case (cmd_q)
                 `SPI_COMMAND_READ:       spi_state <= SPI_STATE_READ_DATA;
@@ -130,7 +147,7 @@ module qspi_ctrl_fsm #(
     end
 
     // latch data
-    always @(posedge txndone_i or posedge reset_i)
+    always @(posedge wstb or posedge reset_i)
         if (reset_i) begin
             cmd_in <= 'b0;
             addr_q <= 'b0;
@@ -158,33 +175,31 @@ module qspi_ctrl_fsm #(
     endcase
 
     // request generation
-    always @(posedge txndone_i or posedge reset_i)
+    always @(posedge wstb or posedge reset_i) begin
         if (reset_i)
-            wb_req_d <= 1'b0;
+            wb_req <= 'b0;
+        //if (wstb_pe) case (spi_state)
         else case (spi_state)
             SPI_STATE_CMD: case (cmd_q)
-                `SPI_COMMAND_BULK_ERASE: wb_req_d <= 1'b1;
-                `SPI_COMMAND_RESET:      wb_req_d <= 1'b1;
-                `SPI_COMMAND_WRITE_THRU: wb_req_d <= 1'b1;
-                default:                 wb_req_d <= 1'b0;
+                `SPI_COMMAND_BULK_ERASE: wb_req <= 1'b1;
+                `SPI_COMMAND_RESET:      wb_req <= 1'b1;
+                default:                 wb_req <= 1'b0;
             endcase
             SPI_STATE_ADDR: case (cmd_q)
-                `SPI_COMMAND_READ:       wb_req_d <= 1'b1;
-                `SPI_COMMAND_FAST_READ:  wb_req_d <= 1'b1;
-                `SPI_COMMAND_SECT_ERASE: wb_req_d <= 1'b1;
-                default:                 wb_req_d <= 1'b0;
+                `SPI_COMMAND_READ:       wb_req <= 1'b1;
+                `SPI_COMMAND_FAST_READ:  wb_req <= 1'b1;
+                `SPI_COMMAND_SECT_ERASE: wb_req <= 1'b1;
+                default:                 wb_req <= 1'b0;
             endcase
-            SPI_STATE_PROG_WORD_DATA:    wb_req_d <= 1'b1;
-            SPI_STATE_WRITE_THRU_DATA:   wb_req_d <= 1'b1;
-            default:                     wb_req_d <= 1'b0;
+            SPI_STATE_PROG_WORD_DATA:    wb_req <= 1'b1;
+            SPI_STATE_WRITE_THRU_DATA:   wb_req <= 1'b1;
+            default:                     wb_req <= 1'b0;
         endcase
+    end
 
     // request write status
-    assign wb_we_d = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
+    assign wb_we = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
 
-    // VT mode
-    wire txnreset_sync;
-    sync2ps sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
     // VT override control
     always @(posedge clk_i or posedge reset_i)
         if (reset_i)
@@ -198,13 +213,6 @@ module qspi_ctrl_fsm #(
 
     // Wishbone control
 
-    wire wb_req_q_posedge;
-    sync2pse sync_wb_req (
-        .clk(clk_i), .rst(reset_i),
-        .d(wb_req_d && txndone_i), .q(),
-        .pe(wb_req_q_posedge), .ne()
-    );
-
     always @(posedge clk_i) begin
         wb_err_o <= 1'b0;
         if (reset_i) begin
@@ -215,11 +223,11 @@ module qspi_ctrl_fsm #(
             wb_dat_o <= 'b0;
             txndata_wb <= 'b0;
         end else begin
-            if (wb_req_q_posedge && !wb_cyc_o) begin
+            if (wb_req && wstb_pe && !wb_cyc_o) begin
                 wb_cyc_o <= 1'b1;
                 wb_stb_o <= 1'b1;
                 wb_adr_o <= wb_adr_d;
-                wb_we_o  <= wb_we_d;
+                wb_we_o  <= wb_we;
                 wb_dat_o <= data_q;
             end else if (wb_cyc_o) begin
                 if (wb_ack_i) begin
@@ -230,7 +238,7 @@ module qspi_ctrl_fsm #(
                     // leftover bits set to zero
                     txndata_wb[IOREG_BITS-1:DATABITS] <= 'b0;
                 end
-            end else if (txnreset_i) begin
+            end else if (txnreset_sync) begin
                 wb_cyc_o <= 'b0;
                 wb_stb_o <= 'b0;
                 wb_we_o  <= 'b0;
