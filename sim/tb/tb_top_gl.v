@@ -11,8 +11,8 @@ module tb_top_gl (
     input rst_i, clk_i,
 
     // QSPI interface
-    input               [3:0] pad_spi_io_i,
-    output              [3:0] pad_spi_io_o,
+    input               [7:0] pad_spi_io_i,
+    output              [7:0] pad_spi_io_o,
     output                    pad_spi_io_oe,
     input                     pad_spi_sck_i,
     input                     pad_spi_sce_i,
@@ -62,7 +62,7 @@ module tb_top_gl (
         .nor_data_oe(nor_data_oe),
         // debug
         .dbg_txnmode(), .dbg_txndir(), .dbg_txndone(),
-        .dbg_txncc(), .dbg_txnmiso(), .dbg_txnmosi(),
+        .dbg_txnbc(), .dbg_txnmiso(), .dbg_txnmosi(),
         .dbg_wb_ctrl_stb(), .dbg_wb_nor_stb(), .dbg_vt_mode()
     );
 

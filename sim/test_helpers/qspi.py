@@ -57,6 +57,7 @@ async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_
     await spi_write(sio_i, sck, data, SPI_MODE.QUAD, 4)
 
     sck_task.kill()
+    await Timer(25, 'ns')
     sce.value = not sce_pol
     sck.value = 0
     await Timer(1, 'ns')

@@ -20,7 +20,9 @@ async def setup(dut):
     dut.wb_adr_o.value = 0
     dut.wb_dat_o.value = 0
 
-    cocotb.start_soon(Clock(dut.clk_i, 8, units="ns").start())
+    #T = 21.5 # 46.5 MHz
+    T = 15.63 # ~64 MHz
+    cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
     dut.rst_i.value = 1
     await ClockCycles(dut.clk_i, 5)
@@ -44,9 +46,9 @@ async def test_fast_read(dut):
           'ack': dut.wb_ack_i,
         'dat_i': dut.wb_dat_o
     }
-    task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=400, stall_cycles=4, log=dut._log.info))
+    task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
 
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x83, freq=60, sce_pol=1, log=dut._log.info)
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x83, freq=24, sce_pol=1, log=dut._log.info)
     assert int(ret_val) == 0x3456
 
     await ClockCycles(dut.clk_i, 1)
@@ -97,9 +99,9 @@ async def test_cmd_translation(dut):
           'ack': dut.wb_ack_i,
         'dat_i': dut.wb_dat_o
     }
-    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=400, stall_cycles=4, log=dut._log.info))
+    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=2000, stall_cycles=4, log=dut._log.info))
 
-    await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=60, sce_pol=1, log=dut._log.info)
+    await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=24, sce_pol=1, log=dut._log.info)
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -125,12 +127,12 @@ async def test_clock_rate(dut):
 
     # Frequency range in MHz
     fstart = 1
-    fstop = 60
+    fstop = 35
     fsteps = 32
     freqs = [fstart + i*(fstop-fstart)/fsteps for i in range(fsteps+1)]
     for i,freq in enumerate(freqs):
         T = 10*int(100000.0/freq) # ps
-        timeout = int(T/1000) * (8+7+4)*2 # timeout ~= twice the expected transaction time
+        timeout = int(T/1000) * (8+8+20+4)*2 # timeout ~= twice the expected transaction time
         dut._log.info(f"Test f={freq}MHz timeout={timeout}ns")
         data = 0x3456 ^ i
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=data, timeout=timeout, stall_cycles=4, log=dut._log.info))
@@ -166,7 +168,7 @@ async def test_prog_word(dut):
 
     task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0x08030000, 0xABCD, timeout=2000, stall_cycles=10, log=dut._log.info))
 
-    await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=60, sce_pol=1, log=dut._log.info)
+    await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=24, sce_pol=1, log=dut._log.info)
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -235,7 +237,7 @@ async def test_loopback(dut):
         'dat_i': dut.wb_dat_o
     }
 
-    ret = await qspi.loopback(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x11ABCD, sce_pol=1, log=dut._log.info)
+    ret = await qspi.loopback(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x11ABCD, freq=24, sce_pol=1, log=dut._log.info)
     assert ret == 0xABCD
 
     ret = await qspi.loopback(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x10, freq=10, sce_pol=1, log=dut._log.info)
@@ -269,8 +271,8 @@ async def test_fast_read_mc(dut):
     for i in range(100):
         # clk period is 8ns, sck period is 16.67ns, so pick toff in [0, 8]ns
         toff = 8.0 * random()
-        task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=400, stall_cycles=4, log=dut._log.info))
-        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x83, freq=60, toff=toff, sce_pol=1)
+        task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
+        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sck_i, dut.sce_i, 0x83, freq=24, toff=toff, sce_pol=1)
         assert int(ret_val) == 0x3456
         await Join(task)
         await Timer(10, 'ns')
