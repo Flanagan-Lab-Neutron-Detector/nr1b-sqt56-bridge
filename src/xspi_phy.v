@@ -10,7 +10,8 @@
 `timescale 1ns/10ps
 
 module xspi_phy_io #(
-    parameter IO_POL    = 1
+    parameter IO_POL = 1,
+    parameter CE_POL = 1
 ) (
     // pad signals
     input        i_pad_sck, i_pad_sce,
@@ -28,7 +29,13 @@ module xspi_phy_io #(
 
     // TODO: CPOL/CPHA?
     assign o_sck = i_pad_sck;
-    assign o_sce = i_pad_sce;
+
+    generate
+    if (CE_POL)
+        assign o_sce =  i_pad_sce;
+    else
+        assign o_sce = ~i_pad_sce;
+    endgenerate
 
     generate
     if (IO_POL) begin
@@ -104,7 +111,7 @@ module xspi_phy_slave #(
         2'b10: bc_odd_mask = 3'b011;
         2'b11: bc_odd_mask = 3'b111;
     endcase
-    assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0);
+    assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
 
     // cycle counter
     always @(negedge sck_i or negedge sce_i)
