@@ -66,7 +66,19 @@ module top_hx8k (
     assign IOB_74 = dbg_wb_nor_stb;
     assign IOB_91 = dbg_txndone;
     */
-    assign IOB_73 = NOR_CE;
+    //assign IOB_74 = dbg_txnmosi[0];
+
+    wire nor_oe_o;
+    wire nor_a0_o;
+    assign NOR_OE = nor_oe_o;
+
+    assign IOB_73 = nor_oe_o;
+    assign IOB_74 = QSPI_CS;
+    assign IOB_87 = dbg_txndone;
+    assign IOB_91 = nor_a0_o;
+
+    //assign IOB_87 = NOR_OE;
+    //assign IOB_91 = dbg_wb_nor_stb;
 
     // extra pins
     //assign FLASH_SS  = 'bz;
@@ -76,7 +88,7 @@ module top_hx8k (
     //assign IOB_73 = 'b0;
     //assign IOB_74 = 'b0;
     assign IOB_82_GBIN4 = 'b0;
-    assign IOB_87 = 'b0;
+    //assign IOB_87 = 'b0;
     assign IOB_89 = 'b0;
     //assign IOB_91 = 'b0;
     assign IOB_103_CBSEL0 = 'b0;
@@ -355,21 +367,21 @@ module top_hx8k (
         NOR_A15, NOR_A14, NOR_A13, NOR_A12, NOR_A11,
         NOR_A10, NOR_A9,  NOR_A8,  NOR_A7,  NOR_A6,
         NOR_A5,  NOR_A4,  NOR_A3,  NOR_A2,  NOR_A1,
-        NOR_A0
+        nor_a0_o
+        //NOR_A0
     } = nor_addr;
+    assign NOR_A0 = nor_a0_o;
 
     //wire [15:0] nor_dq_o_in;
 
     assign {
         IOL_14P, IOL_14N, IOL_13P, IOL_13N
-    } = nor_addr[19:16];
+    } = 'b0; // nor_addr[19:16];
     assign {
         IOL_9P,  IOL_9N,  IOL_5P,  IOL_5N
-    } = qspi_io_i[3:0];
+    } = 'b0; //qspi_io_i[3:0];
     //assign IOB_74 = nor_dq_o_in[15];
     //assign IOB_91 = nor_dq_o_in[14];
-    assign IOB_74 = NOR_WE;
-    assign IOB_91 = 0;
 
     //always @(posedge sysclk)
         //nor_dq_o <= nor_dq_o_in;
@@ -385,7 +397,7 @@ module top_hx8k (
         // NOR
         .nor_addr_o(nor_addr), .nor_data_i(nor_dq_i), .nor_data_o(nor_dq_o),
         .nor_data_oe(nor_dq_oe), .nor_ry_i(NOR_RY_BY),
-        .nor_ce_o(NOR_CE), .nor_we_o(NOR_WE), .nor_oe_o(NOR_OE),
+        .nor_ce_o(NOR_CE), .nor_we_o(NOR_WE), .nor_oe_o(nor_oe_o),
         // debug
         .dbg_txnmode(dbg_txnmode), .dbg_txndir(dbg_txndir), .dbg_txndone(dbg_txndone),
         .dbg_txncc(dbg_txncc), .dbg_txnmosi(dbg_txnmosi), .dbg_txnmiso(dbg_txnmiso),
