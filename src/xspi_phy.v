@@ -104,7 +104,7 @@ module xspi_phy_slave #(
         2'b10: bc_odd_mask = 3'b011;
         2'b11: bc_odd_mask = 3'b111;
     endcase
-    assign txn_cycles = (txnbc_i >> txnmode_i) + |(bc_odd_mask & txnbc_i[2:0]);
+    assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0);
 
     // cycle counter
     always @(negedge sck_i or negedge sce_i)
@@ -126,10 +126,10 @@ module xspi_phy_slave #(
     // set SPI outputs combinationally to avoid deciding when to latch
     // TODO: CDC concerns
     always @(*) case(txnmode_i)
-        2'b00: sio_o = txndata_i[1*outdata_index[WORD_SIZE_BITS-1:0]   ];
-        2'b01: sio_o = txndata_i[2*outdata_index[WORD_SIZE_BITS-1:0]+:2];
-        2'b10: sio_o = txndata_i[4*outdata_index[WORD_SIZE_BITS-1:0]+:4];
-        2'b11: sio_o = txndata_i[8*outdata_index[WORD_SIZE_BITS-1:0]+:8];
+        2'b00: sio_o = { 7'b0, txndata_i[1*outdata_index[WORD_SIZE_BITS-1:0]   ] };
+        2'b01: sio_o = { 6'b0, txndata_i[2*outdata_index[WORD_SIZE_BITS-1:0]+:2] };
+        2'b10: sio_o = { 4'b0, txndata_i[4*outdata_index[WORD_SIZE_BITS-1:0]+:4] };
+        2'b11: sio_o =         txndata_i[8*outdata_index[WORD_SIZE_BITS-1:0]+:8];
     endcase
 
     always @(posedge sck_i or posedge sce_i_b) begin
@@ -140,7 +140,7 @@ module xspi_phy_slave #(
                 2'b00: txndata_o <= { txndata_o[WORD_SIZE-2:0], sio_i[0:0] };
                 2'b01: txndata_o <= { txndata_o[WORD_SIZE-3:0], sio_i[1:0] };
                 2'b10: txndata_o <= { txndata_o[WORD_SIZE-5:0], sio_i[3:0] };
-                2'b11: txndata_o <= {                           sio_i[7:0] };
+                2'b11: txndata_o <= { txndata_o[WORD_SIZE-9:0], sio_i[7:0] };
             endcase
         end
     end
