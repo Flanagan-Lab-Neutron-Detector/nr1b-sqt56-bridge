@@ -8,7 +8,6 @@ BUILDDIR ?= $(PWD)/build
 TOP ?= top_hx8k
 V_SRC = \
 	$(SRCDIR)/cmd_defs.v \
-	$(SRCDIR)/pll_pad.v \
 	$(SRCDIR)/pll_core.v \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \
@@ -28,8 +27,7 @@ export SYN_TOP # expose to synth_gl.tcl
 PIN_DEF ?= $(SRCDIR)/pins.pcf
 DEVICE ?= hx8k
 PACKAGE ?= cb132
-FREQ ?= 48
-PLL ?= core
+FREQ ?= 66
 
 # yosys
 V_DEFS ?= -DSYNTH_ICE40

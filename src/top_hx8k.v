@@ -39,13 +39,13 @@ module top_hx8k (
     output IOL_18P, IOL_18N, IOL_23P, IOL_23N, IOL_25P, IOL_25N
 );
 
-	// PLL to get 240MHz clock
+	// PLL
 	(* gb_clk *) wire       sysclk;
 	wire       locked;
     wire       int_reset_n;
     assign int_reset_n = locked;
     // TODO: global clock input
-	pll_pad pll (.clock_in(CLK), .clock_out(sysclk), .locked(locked));
+	pll_core pll (.clock_in(CLK), .clock_out(sysclk), .locked(locked));
     assign TP10 = 'b0; //sysclk;
     assign TP11 = locked;
 
