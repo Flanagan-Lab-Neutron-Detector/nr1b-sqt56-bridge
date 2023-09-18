@@ -58,25 +58,25 @@ module top_hx8k (
     reg  [1:0] dbg_txnmode;
     reg  [5:0] dbg_txnbc;
     reg [31:0] dbg_txnmosi, dbg_txnmiso;
-    wire       dbg_wb_ctrl_stb;
+    wire       dbg_wb_ctrl_ack;
     wire       dbg_wb_nor_stb;
     wire       dbg_vt_mode;
 
     /*
-    assign IOB_73 = dbg_wb_ctrl_stb;
+    assign IOB_73 = dbg_wb_ctrl_ack;
     assign IOB_74 = dbg_wb_nor_stb;
     assign IOB_91 = dbg_txndone;
     */
     //assign IOB_74 = dbg_txnmosi[0];
 
     wire nor_oe_o;
-    wire nor_a0_o;
+    //wire nor_a0_o;
     assign NOR_OE = nor_oe_o;
 
     assign IOB_73 = nor_oe_o;
-    assign IOB_74 = QSPI_CS;
-    assign IOB_87 = dbg_txndone;
-    assign IOB_91 = nor_a0_o;
+    assign IOB_74 = dbg_txndone;
+    assign IOB_87 = sysclk;
+    assign IOB_91 = nor_dq_i[4];
 
     //assign IOB_87 = NOR_OE;
     //assign IOB_91 = dbg_wb_nor_stb;
@@ -370,10 +370,9 @@ module top_hx8k (
         NOR_A15, NOR_A14, NOR_A13, NOR_A12, NOR_A11,
         NOR_A10, NOR_A9,  NOR_A8,  NOR_A7,  NOR_A6,
         NOR_A5,  NOR_A4,  NOR_A3,  NOR_A2,  NOR_A1,
-        nor_a0_o
-        //NOR_A0
+        NOR_A0
     } = nor_addr;
-    assign NOR_A0 = nor_a0_o;
+    //assign NOR_A0 = nor_a0_o;
 
     //wire [15:0] nor_dq_o_in;
 
@@ -382,7 +381,7 @@ module top_hx8k (
     } = 'b0; // nor_addr[19:16];
     assign {
         IOL_9P,  IOL_9N,  IOL_5P,  IOL_5N
-    } = 'b0; //qspi_io_i[3:0];
+    } = qspi_io_i[3:0];
     //assign IOB_74 = nor_dq_o_in[15];
     //assign IOB_91 = nor_dq_o_in[14];
 
@@ -404,7 +403,7 @@ module top_hx8k (
         // debug
         .dbg_txnmode(dbg_txnmode), .dbg_txndir(dbg_txndir), .dbg_txndone(dbg_txndone),
         .dbg_txnbc(dbg_txnbc), .dbg_txnmosi(dbg_txnmosi), .dbg_txnmiso(dbg_txnmiso),
-        .dbg_wb_ctrl_stb(dbg_wb_ctrl_stb), .dbg_wb_nor_stb(dbg_wb_nor_stb), .dbg_vt_mode(dbg_vt_mode)
+        .dbg_wb_ctrl_ack(dbg_wb_ctrl_ack), .dbg_wb_nor_stb(dbg_wb_nor_stb), .dbg_vt_mode(dbg_vt_mode)
     );
 
 endmodule

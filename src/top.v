@@ -37,7 +37,7 @@ module top #(
     output              [1:0] dbg_txnmode,
     output              [5:0] dbg_txnbc,
     output             [31:0] dbg_txnmosi, dbg_txnmiso,
-    output                    dbg_wb_ctrl_stb,
+    output                    dbg_wb_ctrl_ack,
     output                    dbg_wb_nor_stb,
     output                    dbg_vt_mode
 );
@@ -74,11 +74,11 @@ module top #(
     // debug output
     assign dbg_txnmode = txnmode;
     assign dbg_txndir  = txndir;
-    assign dbg_txndone = txndone;
+    //assign dbg_txndone = txndone;
     assign dbg_txnbc   = txnbc;
     assign dbg_txnmosi = txndata_mosi;
     assign dbg_txnmiso = txndata_miso;
-    assign dbg_wb_ctrl_stb = wb_ctrl_stb;
+    assign dbg_wb_ctrl_ack = wb_ctrl_ack;
     assign dbg_wb_nor_stb = wb_nor_stb;
     assign dbg_vt_mode = vt_mode;
 
@@ -113,7 +113,7 @@ module top #(
         .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
         // control
-        .vt_mode(vt_mode),
+        .vt_mode(vt_mode), .d_wstb(dbg_txndone),
         // wb
         .wb_cyc_o(wb_ctrl_cyc), .wb_stb_o(wb_ctrl_stb), .wb_we_o(wb_ctrl_we), .wb_err_o(wb_ctrl_err),
         .wb_adr_o(wb_ctrl_adr), .wb_dat_o(wb_ctrl_dat_i), .wb_ack_i(wb_ctrl_ack), .wb_stall_i(wb_ctrl_stall),
