@@ -76,7 +76,7 @@ module xspi_phy_slave #(
     input                             sce_i,
     input                       [7:0] sio_i,
     output reg                  [7:0] sio_o,
-    output reg                        sio_oe,    // 0 = input, 1 = output
+    output                            sio_oe,    // 0 = input, 1 = output
 
     // transaction interface
     input      [CYCLE_COUNT_BITS-1:0] txnbc_i,   // transaction bit count
@@ -98,9 +98,13 @@ module xspi_phy_slave #(
     assign sce_i_b = !sce_i;
     assign outdata_index = txn_cycles - cycle_counter; // index of SPI word in data word
 
+    /*
     always @(negedge sck_i or negedge sce_i)
         if (!sce_i) sio_oe <= 1'b0;
         else        sio_oe <= sce_i && txndir_i;
+    */
+
+    assign sio_oe = sce_i && txndir_i;
 
     // calculate SPI cycles from bit count
     // an extra cycle is added if txnbc_i does not fit evenly into the
