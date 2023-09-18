@@ -8,7 +8,7 @@ BUILDDIR ?= $(PWD)/build
 TOP ?= top_hx8k
 V_SRC = \
 	$(SRCDIR)/cmd_defs.v \
-	$(SRCDIR)/pll_core.v \
+	$(SRCDIR)/pll.v \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/nor_bus.v \
@@ -39,6 +39,7 @@ OUT_BIN = $(BUILDDIR)/$(DESIGN_NAME).bin
 OUT_RPT = $(BUILDDIR)/$(DESIGN_NAME).rpt
 OUT_ASC = $(BUILDDIR)/$(DESIGN_NAME).asc
 OUT_JSON = $(BUILDDIR)/$(DESIGN_NAME).json
+OUT_SDF = $(BUILDDIR)/$(DESIGN_NAME).sdf
 OUT_SYN_JSON = $(BUILDDIR)/$(DESIGN_NAME)_syn.json
 OUT_SYN_V = $(BUILDDIR)/$(DESIGN_NAME)_syn.v
 OUT_REPORT_JSON = $(BUILDDIR)/$(DESIGN_NAME)_report.json
@@ -48,7 +49,7 @@ export OUT_JSON # expose to synth.tcl
 export OUT_SYN_JSON # expose to synth_gl.tcl
 
 # seed nonsense
-NEXTPNR_EXPERIMENTAL ?= --tmg-ripup #--opt-timing # 56.6 145.8
+NEXTPNR_EXPERIMENTAL ?= --tmg-ripup --opt-timing # 56.6 145.8
 # some seeds that have worked well: 4, 1779, 2052, 33946, 94452
 SEED ?= 1779
 NEXTPNR_SEED ?= --seed $(SEED)
@@ -71,7 +72,7 @@ $(OUT_BIN): $(OUT_ASC) $(BUILDDIR)
 	icepack $(OUT_ASC) $(OUT_BIN)
 
 $(OUT_ASC): $(PIN_DEF) $(OUT_JSON) $(BUILDDIR)
-	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(FREQ) --asc $(OUT_ASC) --pcf $(PIN_DEF) --json $(OUT_JSON) --report $(OUT_REPORT_JSON) $(NEXTPNR_EXPERIMENTAL) $(NEXTPNR_SEED)
+	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(FREQ) --asc $(OUT_ASC) --pcf $(PIN_DEF) --json $(OUT_JSON) --report $(OUT_REPORT_JSON) --sdf $(OUT_SDF) $(NEXTPNR_EXPERIMENTAL) $(NEXTPNR_SEED)
 
 $(OUT_JSON): $(V_SRC) $(BUILDDIR)
 	yosys -q -e '' -c synth.tcl
