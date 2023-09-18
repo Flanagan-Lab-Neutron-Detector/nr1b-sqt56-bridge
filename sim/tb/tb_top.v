@@ -63,7 +63,7 @@ module tb_top (
         // debug
         .dbg_txnmode(), .dbg_txndir(), .dbg_txndone(),
         .dbg_txnbc(), .dbg_txnmiso(), .dbg_txnmosi(),
-        .dbg_wb_ctrl_stb(), .dbg_wb_nor_stb(), .dbg_vt_mode()
+        .dbg_wb_ctrl_ack(), .dbg_wb_nor_stb(), .dbg_vt_mode()
     );
 
 endmodule

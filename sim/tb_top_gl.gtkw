@@ -1,11 +1,11 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Sep 11 20:47:14 2023
+[*] Wed Sep 13 17:58:38 2023
 [*]
-[dumpfile] "/home/amedcalf/nisoc-rtl/current-bridge/nr1b-sqt56-bridge/sim/tb_top_gl.vcd"
-[dumpfile_mtime] "Mon Sep 11 20:39:03 2023"
-[dumpfile_size] 1509511
-[savefile] "/home/amedcalf/nisoc-rtl/current-bridge/nr1b-sqt56-bridge/sim/tb_top_gl.gtkw"
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top_gl.vcd"
+[dumpfile_mtime] "Wed Sep 13 17:57:48 2023"
+[dumpfile_size] 2125734
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top_gl.gtkw"
 [timestart] 0
 [size] 1497 870
 [pos] -1 -1
@@ -22,30 +22,24 @@ tb_top_gl.clk_i
 @200
 -
 @28
-tb_top_gl.qspi_sce
-tb_top_gl.qspi_sck
+tb_top_gl.top.pad_spi_sce_i
+tb_top_gl.top.pad_spi_sck_i
 @22
-tb_top_gl.qspi_io_i[3:0]
-tb_top_gl.qspi_io_o[3:0]
-@28
-tb_top_gl.qspi_io_oe
+tb_top_gl.top.pad_spi_io_i[7:0]
+tb_top_gl.top.pad_spi_io_o[7:0]
+@29
+tb_top_gl.top.pad_spi_io_oe
 @200
 -
-@22
-tb_top_gl.top.txncc[7:0]
 @28
-tb_top_gl.top.txnmode
 tb_top_gl.top.txndir
 @22
 tb_top_gl.top.txndata_miso[31:0]
-tb_top_gl.top.txndata_mosi[31:0]
 @28
 tb_top_gl.top.txndone
 @200
 -
 @22
 tb_top_gl.top.\qspi_ctrl.cmd_in[7:0]
-@23
-tb_top_gl.top.\qspi_ctrl.addr_in[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
