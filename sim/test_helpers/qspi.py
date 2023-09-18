@@ -134,7 +134,7 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log
     sce.value = not sce_pol
     await Timer(1, 'ns')
 
-async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+async def read_txn(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
     sce.value = sce_pol
     await Timer(2 + toff, 'ns')
 
@@ -156,6 +156,7 @@ async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, sta
     # lsb for i in range(4):
     for i in range(3, -1, -1):
         await RisingEdge(sck)
+        assert sio_oe
         log(f"[qspi.read_txn] data cycle {i} = {int(sio_o.value):04X}h")
         word |= (int(sio_o.value) & 0xF) << i*4
     log(f"[qspi.read_txn] data word = {word:04X}")
@@ -169,14 +170,14 @@ async def read_txn(sio_i, sio_o, sck, sce, addr: int, freq: float, cmd: int, sta
 
     return word
 
-async def read_fast(sio_i, sio_o, sck, sce, addr: int, freq: float = 108, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x0B, stall=20, sce_pol=sce_pol, log=log)
+async def read_fast(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float = 108, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0x0B, stall=20, sce_pol=sce_pol, log=log)
 
-async def read_slow(sio_i, sio_o, sck, sce, addr: int, freq: float = 50, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0x03, stall=0, sce_pol=sce_pol, log=log)
+async def read_slow(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float = 50, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0x03, stall=0, sce_pol=sce_pol, log=log)
 
-async def loopback(sio_i, sio_o, sck, sce, addr: int, freq: float=100, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
+async def loopback(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float=100, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
 
 async def enter_vt(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
     sce.value = sce_pol
