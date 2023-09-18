@@ -28,6 +28,8 @@ module qspi_ctrl_fsm #(
 
     // controller requests
     output reg                        vt_mode,
+    // debug
+    output                            d_wstb,
 
     // wishbone
     output reg                        wb_cyc_o,
@@ -72,15 +74,12 @@ module qspi_ctrl_fsm #(
     reg [2:0] spi_state;
 
     // latched command words
-    reg          [7:0] cmd_in;
+    reg          [7:0] cmd_q;
     reg [ADDRBITS-1:0] addr_q;
     reg [DATABITS-1:0] data_q;
 
     // wb control
     reg wb_req;
-    // cmd is txndata_i[7:0] on command cycle since cmd_q has not been latched
-    wire                      [7:0] cmd_q;
-    assign cmd_q = (spi_state == SPI_STATE_CMD) ? txndata_i[7:0] : cmd_in[7:0];
     // NOR command is packed into the top 6 bits of address
     reg  [5:0] nor_cmd;
     wire [31:0] wb_adr_d;
@@ -89,7 +88,7 @@ module qspi_ctrl_fsm #(
     wire wb_we;
     // WB out data
     reg [IOREG_BITS-1:0] txndata_wb;
-    assign txndata_o = (cmd_in == `SPI_COMMAND_LOOPBACK) ? { {(IOREG_BITS-ADDRBITS){1'b0}}, addr_q } : txndata_wb;
+    assign txndata_o = (cmd_q == `SPI_COMMAND_LOOPBACK) ? { {(IOREG_BITS-ADDRBITS){1'b0}}, addr_q } : txndata_wb;
 
     // { [CYCLE_COUNT_BITS+3-1:3]=bit_count, [2:1]=mode, [0]=dir }
     reg [CYCLE_COUNT_BITS+3-1:0] txn_config_reg[8];
@@ -117,19 +116,16 @@ module qspi_ctrl_fsm #(
         .d(txndone_i), .q(wstb),
         .pe(wstb_pe), .ne()
     );
+    assign d_wstb = wstb_pe;
 
     // sync txnreset (ce deassertion) to sys domain
     // reset value should be 1
     sync2ps #(.R(1)) sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
 
-    // Trigger on wstb to save the one clock delay introducted by
-    // @(posedge clk_i) if (wstb_pe). This is not recommended for an FPGA and
-    // may cause issues.
-
     // QSPI state changes
-    always @(posedge wstb or posedge spi_reset) begin
+    always @(posedge clk_i or posedge spi_reset) begin
         if (spi_reset) spi_state <= SPI_STATE_CMD;
-        else case (spi_state)
+        else if (wstb_pe) case (spi_state)
             SPI_STATE_CMD:               spi_state <= SPI_STATE_ADDR;
             SPI_STATE_ADDR: case (cmd_q)
                 `SPI_COMMAND_READ:       spi_state <= SPI_STATE_READ_DATA;
@@ -147,13 +143,13 @@ module qspi_ctrl_fsm #(
     end
 
     // latch data
-    always @(posedge wstb or posedge reset_i)
+    always @(posedge clk_i)
         if (reset_i) begin
-            cmd_in <= 'b0;
+            cmd_q  <= 'b0;
             addr_q <= 'b0;
             data_q <= 'b0;
-        end else case (spi_state)
-            SPI_STATE_CMD:             cmd_in <= txndata_i[7:0];
+        end else if (wstb_pe) case (spi_state)
+            SPI_STATE_CMD:             cmd_q  <= txndata_i[7:0];
             SPI_STATE_ADDR:            addr_q <= txndata_i[ADDRBITS-1:0];
             SPI_STATE_PROG_WORD_DATA,
             SPI_STATE_PAGE_PROG_DATA,
@@ -162,7 +158,7 @@ module qspi_ctrl_fsm #(
         endcase
 
     // assign NOR command
-    always @(*) case (cmd_in)
+    always @(*) case (cmd_q)
         `SPI_COMMAND_READ:       nor_cmd = `NOR_CYCLE_READ;
         `SPI_COMMAND_FAST_READ:  nor_cmd = `NOR_CYCLE_READ;
         `SPI_COMMAND_BULK_ERASE: nor_cmd = `NOR_CYCLE_ERASE_CHIP;
@@ -175,12 +171,13 @@ module qspi_ctrl_fsm #(
     endcase
 
     // request generation
-    always @(posedge wstb or posedge reset_i) begin
-        if (reset_i)
+    always @(posedge clk_i) begin
+        //if (reset_i)
             wb_req <= 'b0;
-        //if (wstb_pe) case (spi_state)
-        else case (spi_state)
-            SPI_STATE_CMD: case (cmd_q)
+        if (wstb_pe) case (spi_state)
+        //else case (spi_state)
+            // cmd is txndata_i[7:0] on command cycle since cmd_q is latched on this cycle
+            SPI_STATE_CMD: case (txndata_i[7:0])
                 `SPI_COMMAND_BULK_ERASE: wb_req <= 1'b1;
                 `SPI_COMMAND_RESET:      wb_req <= 1'b1;
                 default:                 wb_req <= 1'b0;
@@ -205,9 +202,9 @@ module qspi_ctrl_fsm #(
         if (reset_i)
             vt_mode <= 1'b0;
         else if (txnreset_sync) begin
-            if (cmd_in == `SPI_COMMAND_DET_VT)
+            if (cmd_q == `SPI_COMMAND_DET_VT)
                 vt_mode <= 1'b1;
-            else if (cmd_in == `SPI_COMMAND_RESET)
+            else if (cmd_q == `SPI_COMMAND_RESET)
                 vt_mode <= 1'b0;
         end
 
@@ -223,7 +220,8 @@ module qspi_ctrl_fsm #(
             wb_dat_o <= 'b0;
             txndata_wb <= 'b0;
         end else begin
-            if (wb_req && wstb_pe && !wb_cyc_o) begin
+            //if (wb_req && wstb_pe && !wb_cyc_o) begin
+            if (wb_req && !wb_cyc_o) begin
                 wb_cyc_o <= 1'b1;
                 wb_stb_o <= 1'b1;
                 wb_adr_o <= wb_adr_d;
