@@ -12,3 +12,4 @@ formal/*_bmc
 formal/*_cover
 formal/*_prove
 formal/*.gtkw
+abc.history
