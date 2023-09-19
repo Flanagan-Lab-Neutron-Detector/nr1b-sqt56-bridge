@@ -35,9 +35,9 @@ module qspi_ctrl_fsm #(
     output reg                        wb_cyc_o,
     output reg                        wb_stb_o,
     output reg                        wb_we_o,
-    output reg                        wb_err_o,
     output reg                 [31:0] wb_adr_o,
     output reg         [DATABITS-1:0] wb_dat_o,
+    input                             wb_err_i,
     input                             wb_ack_i,
     input                             wb_stall_i,
     input              [DATABITS-1:0] wb_dat_i
@@ -211,7 +211,6 @@ module qspi_ctrl_fsm #(
     // Wishbone control
 
     always @(posedge clk_i) begin
-        wb_err_o <= 1'b0;
         if (reset_i) begin
             wb_cyc_o <= 'b0;
             wb_stb_o <= 'b0;

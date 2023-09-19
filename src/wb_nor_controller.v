@@ -28,7 +28,7 @@ module wb_nor_controller #(
     input                     wbs_we_i,
     input                     wbs_stb_i,
     input                     wbs_cyc_i,
-    input                     wbs_err_i,
+    output                    wbs_err_o,
     output reg                wbs_ack_o,
     output reg [DATABITS-1:0] wbs_dat_o,
     output                    wbs_stall_o,
@@ -39,7 +39,7 @@ module wb_nor_controller #(
     output reg                wbm_we_o,
     output reg                wbm_stb_o,
     output reg                wbm_cyc_o,
-    output reg                wbm_err_o,
+    input                     wbm_err_i,
     input                     wbm_ack_i,
     input      [DATABITS-1:0] wbm_dat_i,
     input                     wbm_stall_i
@@ -84,7 +84,9 @@ module wb_nor_controller #(
     assign wbs_stall_o = busy;
 
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbs_err_i;
+    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbm_err_i;
+
+    assign wbs_err_o = wbm_err_i;
 
     /*
     nor_bus #(.ADDRBITS(ADDRBITS), .DATABITS(DATABITS)) norbus (
@@ -126,7 +128,6 @@ module wb_nor_controller #(
         end else case (state)
             NOR_CMD_CYCLE_0: begin
                 if (!wbm_stall_i) begin
-                    wbm_err_o <= 1'b0;
                     wbm_cyc_o <= 1'b1;
                     wbm_stb_o <= 1'b1;
                     // wbm_adr_o and wbm_dat_o set above
@@ -178,7 +179,7 @@ module wb_nor_controller #(
     // collected reset conditions
 
     initial assume(wb_rst_i);
-    initial assume(!wbs_err_i);
+    //initial assume(!wbs_err_i);
     // the master is correct
     initial assume(!wbs_cyc_i);
     initial assume(!wbs_stb_i);
@@ -189,7 +190,7 @@ module wb_nor_controller #(
     always @(posedge wb_clk_i) begin
         if (!f_past_valid || $past(wb_rst_i)) begin
             // reset condition
-            assume(!wbs_err_i);
+            //assume(!wbs_err_i);
             assume(!wbs_cyc_i);
             assume(!wbs_stb_i);
             assume(!wbs_ack_o);
@@ -203,7 +204,7 @@ module wb_nor_controller #(
 
     // after a bus error master shold deassert cyc
     always @(posedge wb_clk_i)
-        if (f_past_valid && $past(wbs_err_i) && $past(wbs_cyc_i))
+        if (f_past_valid && $past(wbs_err_o) && $past(wbs_cyc_i))
             assume(!wbs_cyc_i);
 
     // stb should only be asserted if cyc
@@ -238,7 +239,7 @@ module wb_nor_controller #(
 
     // should not assert both ack and err
     always @(posedge wb_clk_i) begin
-        if (f_past_valid && $past(wbs_err_i)) assert(!wbs_ack_o);
+        if (f_past_valid && $past(wbs_err_o)) assert(!wbs_ack_o);
     end
 
     // if cyc and stb, and ack was high, then we shold not start anything
@@ -255,7 +256,7 @@ module wb_nor_controller #(
     // initial reset assumption in slave properties
     initial assume(!wbm_cyc_o);
     initial assume(!wbm_stb_o);
-    initial assume(!wbm_err_o);
+    initial assume(!wbm_err_i);
     initial assume(!wbm_ack_i);
 
     // we start transactions
@@ -273,9 +274,9 @@ module wb_nor_controller #(
 
     // requests
 
-    // following an upstream error we shold abort
+    // following a downstream error we shold abort
     always @(posedge wb_clk_i) begin
-        if (f_past_valid && $past(wbs_err_i) && $past(wbm_cyc_o))
+        if (f_past_valid && $past(wbm_err_i) && $past(wbm_cyc_o))
             assert(!wbm_cyc_o);
     end
 
@@ -306,7 +307,7 @@ module wb_nor_controller #(
         end
     end
 
-    always @(*) assume (!wbm_ack_i || !wbm_err_o);
+    always @(*) assume (!wbm_ack_i || !wbs_err_o);
 
     // state machine formal properties
 
@@ -491,7 +492,7 @@ module wb_nor_passthrough #(
     input                     wbs_we_i,
     input                     wbs_stb_i,
     input                     wbs_cyc_i,
-    input                     wbs_err_i,
+    output                    wbs_err_o,
     output                    wbs_ack_o,
     output     [DATABITS-1:0] wbs_dat_o,
     output                    wbs_stall_o,
@@ -502,14 +503,14 @@ module wb_nor_passthrough #(
     output                    wbm_we_o,
     output                    wbm_stb_o,
     output                    wbm_cyc_o,
-    output                    wbm_err_o,
+    input                     wbm_err_i,
     input                     wbm_ack_i,
     input      [DATABITS-1:0] wbm_dat_i,
     input                     wbm_stall_i
 );
 
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbs_err_i;
+    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbm_err_i;
 
     wire  [CMDBITS-1:0] cmd;
     // decode command vs. address bits
@@ -518,13 +519,13 @@ module wb_nor_passthrough #(
     assign wbs_ack_o   = wbm_ack_i;
     assign wbs_dat_o   = wbm_dat_i;
     assign wbs_stall_o = wbm_stall_i;
+    assign wbs_err_o   = wbm_err_i;
     assign wbm_adr_o   = wbs_adr_i[ADDRBITS-1:0];
     //assign wbm_dat_o   = 16'h1234;
     assign wbm_dat_o   = (cmd == `NOR_CYCLE_RESET) ? 16'h00F0 : wbs_dat_i;
     assign wbm_we_o    = wbs_we_i;
     assign wbm_cyc_o   = wbs_cyc_i;
     assign wbm_stb_o   = wbs_stb_i && ((cmd == `NOR_CYCLE_WRITE) || (cmd == `NOR_CYCLE_READ) || (cmd == `NOR_CYCLE_RESET));
-    assign wbm_err_o   = wbs_err_i;
 
 
 endmodule

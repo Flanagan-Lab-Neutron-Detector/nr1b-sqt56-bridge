@@ -14,6 +14,7 @@ module tb_wb_nor_controller (
     input  [31:0] wbs_adr_i,
     input  [15:0] wbs_dat_i,
     input         wbs_we_i, wbs_stb_i, wbs_cyc_i,
+    output        wbs_err_o,
     output        wbs_ack_o,
     output [15:0] wbs_dat_o,
     output        wbs_stall_o,
@@ -24,7 +25,7 @@ module tb_wb_nor_controller (
     output         wbm_we_o,
     output         wbm_stb_o,
     output         wbm_cyc_o,
-    output         wbm_err_o,
+    input          wbm_err_i,
     input          wbm_ack_i,
     input   [15:0] wbm_dat_i,
     input          wbm_stall_i
@@ -52,12 +53,12 @@ module tb_wb_nor_controller (
 
         .wbs_adr_i(wbs_adr_i), .wbs_dat_i(wbs_dat_i),
         .wbs_we_i(wbs_we_i), .wbs_stb_i(wbs_stb_i), .wbs_cyc_i(wbs_cyc_i),
-        .wbs_err_i(1'b0), .wbs_ack_o(wbs_ack_o),
+        .wbs_err_o(wbs_err_o), .wbs_ack_o(wbs_ack_o),
         .wbs_dat_o(wbs_dat_o), .wbs_stall_o(wbs_stall_o),
 
         .wbm_adr_o(wbm_adr_o), .wbm_dat_o(wbm_dat_o),
         .wbm_we_o(wbm_we_o), .wbm_cyc_o(wbm_cyc_o), .wbm_stb_o(wbm_stb_o),
-        .wbm_err_o(wbm_err_o), .wbm_ack_i(wbm_ack_i),
+        .wbm_err_i(wbm_err_i), .wbm_ack_i(wbm_ack_i),
         .wbm_dat_i(wbm_dat_i), .wbm_stall_i(wbm_stall_i)
     );
 

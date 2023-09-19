@@ -26,9 +26,9 @@ module tb_xspi_phy #(
     output reg                wb_cyc_o,
     output reg                wb_stb_o,
     output reg                wb_we_o,
-    output reg                wb_err_o,
     output reg         [31:0] wb_adr_o,
     output reg [DATABITS-1:0] wb_dat_o,
+    input                     wb_err_i,
     input                     wb_ack_i,
     input                     wb_stall_i,
     input      [DATABITS-1:0] wb_dat_i
@@ -85,7 +85,7 @@ module tb_xspi_phy #(
         .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!sce_i),
         // wb
-        .wb_cyc_o(wb_cyc_o), .wb_stb_o(wb_stb_o), .wb_we_o(wb_we_o), .wb_err_o(wb_err_o),
+        .wb_cyc_o(wb_cyc_o), .wb_stb_o(wb_stb_o), .wb_we_o(wb_we_o), .wb_err_i(wb_err_i),
         .wb_adr_o(wb_adr_o), .wb_dat_o(wb_dat_o), .wb_ack_i(wb_ack_i), .wb_stall_i(wb_stall_i),
         .wb_dat_i(wb_dat_i),
         .vt_mode()

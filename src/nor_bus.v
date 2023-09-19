@@ -19,7 +19,7 @@ module nor_bus #(
     input                     wb_we_i,
     input                     wb_stb_i,
     input                     wb_cyc_i,
-    input                     wb_err_i,
+    output                    wb_err_o,
     output reg                wb_ack_o,
     output reg [DATABITS-1:0] wb_dat_o,
     output                    wb_stall_o,
@@ -37,7 +37,9 @@ module nor_bus #(
 
     // wb bus interface + NOR state machine
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wb_cyc_i || wb_err_i;
+    assign mod_reset = wb_rst_i || !wb_cyc_i || wb_err_o;
+
+    assign wb_err_o = 'b0;
 
     wire fifo_full, fifo_empty, fifo_write;
     reg  fifo_read;
@@ -136,7 +138,7 @@ module nor_bus #(
     // collected reset conditions
 
     initial assume(wb_rst_i);
-    initial assume(!wb_err_i);
+    //initial assume(!wb_err_i);
     // the master is correct
     initial assume(!wb_cyc_i);
     initial assume(!wb_stb_i);
@@ -147,7 +149,7 @@ module nor_bus #(
     always @(posedge wb_clk_i) begin
         if (!f_past_valid || $past(wb_rst_i)) begin
             // reset condition
-            assume(!wb_err_i);
+            assume(!wb_err_o);
             assume(!wb_cyc_i);
             assume(!wb_stb_i);
             assume(!wb_ack_o);
@@ -161,7 +163,7 @@ module nor_bus #(
 
     // after a bus error master should deassert cyc
     always @(posedge wb_clk_i)
-        if (f_past_valid && $past(wb_err_i) && $past(wb_cyc_i))
+        if (f_past_valid && $past(wb_err_o) && $past(wb_cyc_i))
             assume(!wb_cyc_i);
 
     // stb should only be asserted if cyc
@@ -196,7 +198,7 @@ module nor_bus #(
 
     // should not assert both ack and err
     always @(posedge wb_clk_i) begin
-        if (f_past_valid && $past(wb_err_i)) assert(!wb_ack_o);
+        if (f_past_valid && $past(wb_err_o)) assert(!wb_ack_o);
     end
 
     // if cyc and stb, and ack was high, then we shold not start anything

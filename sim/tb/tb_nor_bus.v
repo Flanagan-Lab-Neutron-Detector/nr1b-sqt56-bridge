@@ -16,6 +16,7 @@ module tb_nor_bus (
     output        wb_ack_o,
     output [15:0] wb_dat_o,
     output        wb_stall_o,
+    output        wb_err_o,
 
     input         nor_ry_i,
     input  [15:0] nor_data_i,
@@ -45,7 +46,7 @@ module tb_nor_bus (
         .wb_rst_i(rst_i), .wb_clk_i(clk_i),
         .wb_adr_i(wb_adr_i), .wb_dat_i(wb_dat_i),
         .wb_we_i(wb_we_i), .wb_stb_i(wb_stb_i), .wb_cyc_i(wb_cyc_i),
-        .wb_err_i(1'b0),
+        .wb_err_o(wb_err_o),
         .wb_ack_o(wb_ack_o), .wb_dat_o(wb_dat_o), .wb_stall_o(wb_stall_o),
 
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i),

@@ -115,7 +115,7 @@ module top #(
         // control
         .vt_mode(vt_mode), .d_wstb(dbg_txndone),
         // wb
-        .wb_cyc_o(wb_ctrl_cyc), .wb_stb_o(wb_ctrl_stb), .wb_we_o(wb_ctrl_we), .wb_err_o(wb_ctrl_err),
+        .wb_cyc_o(wb_ctrl_cyc), .wb_stb_o(wb_ctrl_stb), .wb_we_o(wb_ctrl_we), .wb_err_i(wb_ctrl_err),
         .wb_adr_o(wb_ctrl_adr), .wb_dat_o(wb_ctrl_dat_i), .wb_ack_i(wb_ctrl_ack), .wb_stall_i(wb_ctrl_stall),
         .wb_dat_i(wb_ctrl_dat_o)
     );
@@ -125,12 +125,12 @@ module top #(
 
         .wbs_adr_i(wb_ctrl_adr), .wbs_dat_i(wb_ctrl_dat_i),
         .wbs_we_i(wb_ctrl_we), .wbs_stb_i(wb_ctrl_stb), .wbs_cyc_i(wb_ctrl_cyc),
-        .wbs_err_i(wb_ctrl_err), .wbs_ack_o(wb_ctrl_ack),
+        .wbs_err_o(wb_ctrl_err), .wbs_ack_o(wb_ctrl_ack),
         .wbs_dat_o(wb_ctrl_dat_o), .wbs_stall_o(wb_ctrl_stall),
 
         .wbm_adr_o(wb_nor_adr), .wbm_dat_o(wb_nor_dat_o),
         .wbm_we_o(wb_nor_we), .wbm_cyc_o(wb_nor_cyc), .wbm_stb_o(wb_nor_stb),
-        .wbm_err_o(wb_nor_err), .wbm_ack_i(wb_nor_ack),
+        .wbm_err_i(wb_nor_err), .wbm_ack_i(wb_nor_ack),
         .wbm_dat_i(wb_nor_dat_i), .wbm_stall_i(wb_nor_stall)
     );
 
@@ -138,7 +138,7 @@ module top #(
         .wb_rst_i(reset_i), .wb_clk_i(clk_i),
         .wb_adr_i(wb_nor_adr), .wb_dat_i(wb_nor_dat_o),
         .wb_we_i(wb_nor_we), .wb_stb_i(wb_nor_stb), .wb_cyc_i(wb_nor_cyc),
-        .wb_err_i(wb_nor_err),
+        .wb_err_o(wb_nor_err),
         .wb_ack_o(wb_nor_ack), .wb_dat_o(wb_nor_dat_i), .wb_stall_o(wb_nor_stall),
 
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i),
