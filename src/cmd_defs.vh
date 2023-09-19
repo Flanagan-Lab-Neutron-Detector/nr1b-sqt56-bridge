@@ -25,3 +25,5 @@
 `define NOR_CYCLE_WRITE_BUF    6'h06
 `define NOR_CYCLE_PROG_BUF     6'h07
 `define NOR_CYCLE_WRITE        6'h08
+`define NOR_CYCLE_MAX_         6'h08 // highest NOR_CYCLE_* value
+

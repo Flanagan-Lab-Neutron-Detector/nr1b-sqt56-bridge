@@ -1,0 +1,51 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue Sep 19 22:35:46 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_wb_nor_controller.vcd"
+[dumpfile_mtime] "Tue Sep 19 22:33:46 2023"
+[dumpfile_size] 6957
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_wb_nor_controller.gtkw"
+[timestart] 546800
+[size] 1549 760
+[pos] -1 -1
+*-15.049941 680003 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 219
+[sst_expanded] 1
+[sst_vpaned_height] 213
+@28
+tb_wb_nor_controller.rst_i
+tb_wb_nor_controller.clk_i
+@200
+-
+@28
+tb_wb_nor_controller.wbs_cyc_i
+tb_wb_nor_controller.wbs_stb_i
+tb_wb_nor_controller.wbs_we_i
+@22
+tb_wb_nor_controller.wbs_adr_i[31:0]
+tb_wb_nor_controller.wbs_dat_i[15:0]
+tb_wb_nor_controller.wbs_dat_o[15:0]
+@28
+tb_wb_nor_controller.wbs_err_o
+tb_wb_nor_controller.wbs_stall_o
+tb_wb_nor_controller.wbs_ack_o
+@200
+-
+@28
+tb_wb_nor_controller.wbm_cyc_o
+tb_wb_nor_controller.wbm_stb_o
+tb_wb_nor_controller.wbm_we_o
+@22
+tb_wb_nor_controller.wbm_adr_o[25:0]
+tb_wb_nor_controller.wbm_dat_o[15:0]
+tb_wb_nor_controller.wbm_dat_i[15:0]
+@28
+tb_wb_nor_controller.wbm_err_i
+@29
+tb_wb_nor_controller.wbm_stall_i
+@28
+tb_wb_nor_controller.wbm_ack_i
+[pattern_trace] 1
+[pattern_trace] 0

@@ -18,6 +18,7 @@ async def setup(dut):
     dut.wbm_stall_i.value = 0
     dut.wbm_ack_i.value = 0
     dut.wbm_dat_i.value = 0x3176
+    dut.wbm_err_i.value = 0
 
     dut.rst_i.value = 1
     await ClockCycles(dut.clk_i, 5)
@@ -40,6 +41,7 @@ async def test_read(dut):
            'we': dut.wbs_we_i,
           'adr': dut.wbs_adr_i,
         'dat_o': dut.wbs_dat_o,
+          'err': dut.wbs_err_o,
         'stall': dut.wbs_stall_o,
           'ack': dut.wbs_ack_o,
         'dat_i': dut.wbs_dat_i
@@ -81,6 +83,7 @@ async def test_simple_command(dut):
            'we': dut.wbs_we_i,
           'adr': dut.wbs_adr_i,
         'dat_o': dut.wbs_dat_i,
+          'err': dut.wbs_err_o,
         'stall': dut.wbs_stall_o,
           'ack': dut.wbs_ack_o,
         'dat_i': dut.wbs_dat_o
@@ -124,6 +127,7 @@ async def test_ext_command(dut):
            'we': dut.wbs_we_i,
           'adr': dut.wbs_adr_i,
         'dat_o': dut.wbs_dat_i,
+          'err': dut.wbs_err_o,
         'stall': dut.wbs_stall_o,
           'ack': dut.wbs_ack_o,
         'dat_i': dut.wbs_dat_o
@@ -161,3 +165,63 @@ async def test_ext_command(dut):
 
     stub_routine.kill()
     await ClockCycles(dut.clk_i, 4)
+
+@cocotb.test()
+async def test_error(dut):
+    """Test error on invalid command"""
+
+    await setup(dut)
+
+    bus_s = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbs_cyc_i,
+          'stb': dut.wbs_stb_i,
+           'we': dut.wbs_we_i,
+          'adr': dut.wbs_adr_i,
+        'dat_o': dut.wbs_dat_i,
+          'err': dut.wbs_err_o,
+        'stall': dut.wbs_stall_o,
+          'ack': dut.wbs_ack_o,
+        'dat_i': dut.wbs_dat_o
+    }
+
+    bus = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbm_cyc_o,
+          'stb': dut.wbm_stb_o,
+           'we': dut.wbm_we_o,
+          'adr': dut.wbm_adr_o,
+        'dat_o': dut.wbm_dat_i,
+        'stall': dut.wbm_stall_i,
+          'ack': dut.wbm_ack_i,
+        'dat_i': dut.wbm_dat_o
+    }
+
+    stub = wb.slave_expect_nothing(bus)
+    stub_routine = cocotb.start_soon(stub)
+
+    # send invalid command
+    # top 6 bits are command, 6'h3F is invalid
+    # address is don't-care, data is don't-care
+    wb_addr = 0xFC000000
+    wb_data = 0
+
+    # initiate cycle
+    bus_s['adr'].value = wb_addr
+    bus_s['dat_i'].value = wb_data
+    bus_s['cyc'].value = 1
+    bus_s['stb'].value = 1
+    bus_s['we'].value  = 1
+    await ClockCycles(bus_s['clk'], 2)
+    assert bus_s['err'].value == 1
+
+    bus_s['adr'].value = 0
+    bus_s['dat_i'].value = 0
+    bus_s['cyc'].value = 0
+    bus_s['stb'].value = 0
+    bus_s['we'].value  = 0
+    stub_routine.kill()
+    await ClockCycles(dut.clk_i, 4)
+

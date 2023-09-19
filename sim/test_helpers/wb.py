@@ -289,3 +289,13 @@ async def slave_monitor(bus: dict, data=0, stall_cycles=0, log=lambda s: None):
                 bus['ack'].value = 0
                 stall_count = 0
         await ClockCycles(bus['clk'], 1)
+
+async def slave_expect_nothing(bus: dict):
+    """Expects no WB activity"""
+
+    bus['stall'].value = 0
+
+    while True:
+        assert bus['stb'].value == 0
+        await ClockCycles(bus['clk'], 1)
+

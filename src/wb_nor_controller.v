@@ -67,10 +67,11 @@ module wb_nor_controller #(
     wire          [7:0] cycle_data_sel; // 0 = use rom value, 1 = use supplied
     wire [ADDRBITS-1:0] cycle_addr;
     wire [DATABITS-1:0] cycle_data;
+    wire                cycle_err;      // 1 = invalid cycle
     assign cycle_addr[ADDRBITS-1:12] = '0;
 
     nor_cmd_rom cmd_rom (
-        .cmd_i(cmd_cmd), .cycle_i(cycle),
+        .cmd_i(cmd_cmd), .cycle_i(cycle), .cycle_err_o(cycle_err),
         .cycle_addr_o(cycle_addr[11:0]), .cycle_data_o(cycle_data),
         .cycle_addr_sel_o(cycle_addr_sel),
         .cycle_data_sel_o(cycle_data_sel),
@@ -84,24 +85,9 @@ module wb_nor_controller #(
     assign wbs_stall_o = busy;
 
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbm_err_i;
+    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbs_err_o;
 
-    assign wbs_err_o = wbm_err_i;
-
-    /*
-    nor_bus #(.ADDRBITS(ADDRBITS), .DATABITS(DATABITS)) norbus (
-        // wb
-        .wb_rst_i(wb_rst_i), .wb_clk_i(wb_clk_i),
-        .wb_adr_i(wbm_adr_o), .wb_dat_i(wbm_dat_o),
-        .wb_we_i(wbm_we_o), .wb_cyc_i(wbm_cyc_o), .wb_stb_i(wbm_stb_o),
-        .wb_err_i(wbm_err_o), .wb_ack_o(wbm_ack_i),
-        .wb_dat_o(wbm_dat_o), .wb_stall_o(wbm_stall_i)
-        // nor
-        .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i), .nor_data_o(nor_data_o),
-        .nor_addr_o(nor_addr_o), .nor_ce_o(nor_ce_o), .nor_we_o(nor_we_o),
-        .nor_oe_o(nor_oe_o), .nor_data_oe(nor_data_oe)
-    );
-    */
+    assign wbs_err_o = wbm_err_i || cycle_err;
 
     always @(posedge wb_clk_i) begin
         if (mod_reset) begin
@@ -117,8 +103,6 @@ module wb_nor_controller #(
             // latch inputs
             cmd_latch  <= wbs_adr_i;
             data_latch <= wbs_dat_i;
-            //cmd_addr  <= wb_cmd_addr;
-            //cmd_cmd   <= wb_cmd_cmd;
             // decode cmd to load cycle info
             // kick off state machine
             busy       <= 1'b1;
@@ -146,7 +130,6 @@ module wb_nor_controller #(
                     if (cmd_cmd == 6'b0)
                         wbs_dat_o <= wbm_dat_i;
                     if (cycle_next == cycle_cnt) begin
-                        //busy      <= 1'b0;
                         wbs_ack_o <= 1'b1;
                         cycle     <= 3'b0;
                         state     <= NOR_CMD_IDLE;
@@ -346,12 +329,15 @@ endmodule
 module nor_cmd_rom (
     input   [5:0] cmd_i,
     input   [2:0] cycle_i,
+    output            cycle_err_o,
     output reg [11:0] cycle_addr_o,
     output reg [15:0] cycle_data_o,
     output reg  [2:0] cycle_cnt_o,
     output reg  [7:0] cycle_addr_sel_o, // 0 = use rom value, 1 = use supplied
     output reg  [7:0] cycle_data_sel_o  // 0 = use rom value, 1 = use supplied
 );
+
+    assign cycle_err_o = cmd_i > `NOR_CYCLE_MAX_;
 
     // cycle count
     always @(*)
@@ -386,7 +372,6 @@ module nor_cmd_rom (
     always @(*) begin
         cycle_addr_o = cycle_addr_mem[cmd_i][cycle_i];
         cycle_data_o = cycle_data_mem[cmd_i][cycle_i];
-        //cycle_data_o = { cycle_data_mem[cmd_i][cycle_i][7:0], cycle_data_mem[cmd_i][cycle_i][15:8] };
     end
 
     reg [11:0] cycle_addr_mem[64][6];
@@ -436,15 +421,6 @@ module nor_cmd_rom (
             cycle_data_mem[i][0] = 16'h00F0;
         end
 
-        /*
-        cycle_addr_mem[`NOR_CYCLE_READ][0] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][0] = 16'h0000;
-        cycle_addr_mem[`NOR_CYCLE_READ][1] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][1] = 16'h0000;
-        cycle_addr_mem[`NOR_CYCLE_READ][2] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][2] = 16'h0000;
-        cycle_addr_mem[`NOR_CYCLE_READ][3] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][3] = 16'h0000;
-        cycle_addr_mem[`NOR_CYCLE_READ][4] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][4] = 16'h0000;
-        cycle_addr_mem[`NOR_CYCLE_READ][5] =  12'h000; cycle_data_mem[`NOR_CYCLE_READ][5] = 16'h0000;
-        */
-
         cycle_addr_mem[`NOR_CYCLE_CFI_ENTER][0]    =  12'h055; cycle_data_mem[`NOR_CYCLE_CFI_ENTER][0]    = 16'h0098;
 
         cycle_addr_mem[`NOR_CYCLE_PROGRAM][0]      =  12'h555; cycle_data_mem[`NOR_CYCLE_PROGRAM][0]      = 16'h00AA;
@@ -477,55 +453,3 @@ module nor_cmd_rom (
 
 endmodule
 
-module wb_nor_passthrough #(
-    parameter CMDBITS  = 6,
-    parameter ADDRBITS = 26,
-    parameter DATABITS = 16
-) (
-    // wishbone global
-    input                     wb_rst_i,
-    input                     wb_clk_i,
-
-    // wishbone slave
-    input      [ADDRBITS+CMDBITS-1:0] wbs_adr_i,
-    input      [DATABITS-1:0] wbs_dat_i,
-    input                     wbs_we_i,
-    input                     wbs_stb_i,
-    input                     wbs_cyc_i,
-    output                    wbs_err_o,
-    output                    wbs_ack_o,
-    output     [DATABITS-1:0] wbs_dat_o,
-    output                    wbs_stall_o,
-
-    // wishbone master
-    output     [ADDRBITS-1:0] wbm_adr_o,
-    output     [DATABITS-1:0] wbm_dat_o,
-    output                    wbm_we_o,
-    output                    wbm_stb_o,
-    output                    wbm_cyc_o,
-    input                     wbm_err_i,
-    input                     wbm_ack_i,
-    input      [DATABITS-1:0] wbm_dat_i,
-    input                     wbm_stall_i
-);
-
-    wire mod_reset;
-    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbm_err_i;
-
-    wire  [CMDBITS-1:0] cmd;
-    // decode command vs. address bits
-    assign cmd = wbs_adr_i[ADDRBITS+CMDBITS-1:ADDRBITS];
-
-    assign wbs_ack_o   = wbm_ack_i;
-    assign wbs_dat_o   = wbm_dat_i;
-    assign wbs_stall_o = wbm_stall_i;
-    assign wbs_err_o   = wbm_err_i;
-    assign wbm_adr_o   = wbs_adr_i[ADDRBITS-1:0];
-    //assign wbm_dat_o   = 16'h1234;
-    assign wbm_dat_o   = (cmd == `NOR_CYCLE_RESET) ? 16'h00F0 : wbs_dat_i;
-    assign wbm_we_o    = wbs_we_i;
-    assign wbm_cyc_o   = wbs_cyc_i;
-    assign wbm_stb_o   = wbs_stb_i && ((cmd == `NOR_CYCLE_WRITE) || (cmd == `NOR_CYCLE_READ) || (cmd == `NOR_CYCLE_RESET));
-
-
-endmodule
