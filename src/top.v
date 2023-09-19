@@ -4,7 +4,7 @@
  *
  */
 
-`include "cmd_defs.v"
+`include "cmd_defs.vh"
 
 `default_nettype none
 `timescale 1ns/10ps

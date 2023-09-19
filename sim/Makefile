@@ -23,7 +23,7 @@ COCOTB_RESULTS_FILE ?= $(SIMDIR)/results.xml
 
 #VERILOG_SOURCES = $(filter-out $(SRCDIR)/tb_%,$(wildcard $(SRCDIR)/*.v)) $(SRCDIR)/tb_$(TEST).v
 VERILOG_SOURCES = \
-	$(SRCDIR)/cmd_defs.v \
+	$(SRCDIR)/cmd_defs.vh \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/qspi.v \
 	$(SRCDIR)/xspi_phy.v \

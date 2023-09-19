@@ -7,7 +7,7 @@
 `default_nettype none
 `timescale 1ns/100ps
 
-`include "cmd_defs.v"
+`include "cmd_defs.vh"
 
 // TODO: ROM -> FSM
 // The ROM-based implementation below is inefficient and inflexible.

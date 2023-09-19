@@ -20,4 +20,4 @@ prep -top top
 ../src/wb_nor_controller.v
 ../src/top.v
 ../src/qspi.v
-../src/cmd_defs.v
+../src/cmd_defs.vh

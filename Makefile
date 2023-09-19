@@ -7,7 +7,7 @@ BUILDDIR ?= $(PWD)/build
 # source
 TOP ?= top_hx8k
 V_SRC = \
-	$(SRCDIR)/cmd_defs.v \
+	$(SRCDIR)/cmd_defs.vh \
 	$(SRCDIR)/pll.v \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \

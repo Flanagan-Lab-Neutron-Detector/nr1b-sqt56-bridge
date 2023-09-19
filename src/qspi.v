@@ -7,7 +7,7 @@
 `default_nettype none
 `timescale 1ns/10ps
 
-`include "cmd_defs.v"
+`include "cmd_defs.vh"
 
 module qspi_ctrl_fsm #(
     parameter ADDRBITS = 26,
