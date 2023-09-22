@@ -49,7 +49,7 @@ export OUT_JSON # expose to synth.tcl
 export OUT_SYN_JSON # expose to synth_gl.tcl
 
 # seed nonsense
-NEXTPNR_EXPERIMENTAL ?= --tmg-ripup --opt-timing # 56.6 145.8
+NEXTPNR_EXPERIMENTAL ?= --tmg-ripup #--opt-timing # 56.6 145.8
 # some seeds that have worked well: 4, 1779, 2052, 33946, 94452
 SEED ?= 1779
 NEXTPNR_SEED ?= --seed $(SEED)
