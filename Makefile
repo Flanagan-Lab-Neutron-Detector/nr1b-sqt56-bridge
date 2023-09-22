@@ -13,7 +13,9 @@ V_SRC = \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/xspi_phy.v \
+	$(SRCDIR)/xspi_os_phy.v \
 	$(SRCDIR)/qspi.v \
+	$(SRCDIR)/qspi_sync.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/fifo.v \
 	$(SRCDIR)/sync2.v
@@ -27,7 +29,7 @@ export SYN_TOP # expose to synth_gl.tcl
 PIN_DEF ?= $(SRCDIR)/pins.pcf
 DEVICE ?= hx8k
 PACKAGE ?= cb132
-FREQ ?= 66
+FREQ ?= 90
 
 # yosys
 V_DEFS ?= -DSYNTH_ICE40

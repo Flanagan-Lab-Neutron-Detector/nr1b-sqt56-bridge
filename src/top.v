@@ -66,6 +66,7 @@ module top #(
     reg   [5:0] txnbc;
     wire [31:0] txndata_mosi;
     reg  [31:0] txndata_miso;
+    wire        txnreset;
 
     // WE override for VT mode control
     wire nor_we_int, vt_mode;
@@ -93,16 +94,17 @@ module top #(
         .i_sio(spi_io_o), .i_sio_oe(spi_io_oe)
     );
 
-    xspi_phy_slave #(
+    xspi_os_phy_slave #(
         .WORD_SIZE(32),
         .CYCLE_COUNT_BITS(6)
     ) xspi_slave (
         .sck_i(spi_sck), .sce_i(spi_sce), .sio_oe(spi_io_oe), .sio_i(spi_io_i), .sio_o(spi_io_o),
+        .tclk_i(clk_i), .trst_i(reset_i), .txnreset_o(txnreset),
         .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndata_i(txndata_mosi),
         .txndata_o(txndata_miso), .txndone_o(txndone)
     );
 
-    qspi_ctrl_fsm #(
+    qspi_ctrl_fsm_sync #(
         .ADDRBITS(26),
         .DATABITS(16),
         .IOREG_BITS(32)
@@ -111,7 +113,7 @@ module top #(
         .reset_i(reset_i), .clk_i(clk_i),
         // spi slave
         .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
-        .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
+        .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(txnreset), //.txnreset_i(!spi_sce),
         // control
         .vt_mode(vt_mode), .d_wstb(dbg_txndone),
         // wb

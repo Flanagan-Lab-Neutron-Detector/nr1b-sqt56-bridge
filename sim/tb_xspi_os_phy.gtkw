@@ -1,0 +1,74 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Thu Sep 21 23:21:30 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_os_phy.vcd"
+[dumpfile_mtime] "Thu Sep 21 23:20:11 2023"
+[dumpfile_size] 226126
+[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_os_phy.gtkw"
+[timestart] 0
+[size] 1574 797
+[pos] -1 -1
+*-18.079054 438000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_xspi_os_phy.
+[sst_width] 297
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 226
+@28
+tb_xspi_os_phy.rst_i
+tb_xspi_os_phy.clk_i
+@200
+-
+@28
+tb_xspi_os_phy.sce_i
+tb_xspi_os_phy.sck_i
+@22
+tb_xspi_os_phy.sio_i[7:0]
+tb_xspi_os_phy.sio_o[7:0]
+@28
+tb_xspi_os_phy.sio_oe
+@200
+-
+@24
+tb_xspi_os_phy.xspi_os_phy_slave.cycle_counter[5:0]
+tb_xspi_os_phy.xspi_os_phy_slave.txn_cycles[5:0]
+@25
+tb_xspi_os_phy.xspi_os_phy_slave.outdata_index[5:0]
+@200
+-
+@28
+tb_xspi_os_phy.txnmode[1:0]
+tb_xspi_os_phy.txndir
+@24
+tb_xspi_os_phy.txnbc[5:0]
+@22
+tb_xspi_os_phy.txndata_miso[31:0]
+tb_xspi_os_phy.txndata_mosi[31:0]
+@28
+tb_xspi_os_phy.txndone
+tb_xspi_os_phy.txnreset
+@200
+-
+@22
+tb_xspi_os_phy.qspi_ctrl.cmd_q[7:0]
+tb_xspi_os_phy.qspi_ctrl.addr_q[25:0]
+tb_xspi_os_phy.qspi_ctrl.data_q[15:0]
+@28
+tb_xspi_os_phy.qspi_ctrl.spi_state[2:0]
+@200
+-
+@28
+tb_xspi_os_phy.wb_cyc_o
+tb_xspi_os_phy.wb_stb_o
+tb_xspi_os_phy.wb_we_o
+@22
+tb_xspi_os_phy.wb_adr_o[31:0]
+tb_xspi_os_phy.wb_dat_o[15:0]
+tb_xspi_os_phy.wb_dat_i[15:0]
+@28
+tb_xspi_os_phy.wb_err_i
+tb_xspi_os_phy.wb_stall_i
+tb_xspi_os_phy.wb_ack_i
+[pattern_trace] 1
+[pattern_trace] 0

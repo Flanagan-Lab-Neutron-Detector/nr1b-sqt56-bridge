@@ -26,7 +26,9 @@ VERILOG_SOURCES = \
 	$(SRCDIR)/cmd_defs.vh \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/qspi.v \
+	$(SRCDIR)/qspi_sync.v \
 	$(SRCDIR)/xspi_phy.v \
+	$(SRCDIR)/xspi_os_phy.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/fifo.v \
