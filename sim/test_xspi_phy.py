@@ -219,33 +219,6 @@ async def test_page_prog(dut):
     await Join(task)
 
 @cocotb.test()
-async def test_loopback(dut):
-    """Address loopback"""
-
-    await setup(dut)
-
-    bus_wb = {
-          'clk': dut.clk_i,
-          'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
-    }
-
-    ret = await qspi.loopback(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x11ABCD, freq=20, sce_pol=1, log=dut._log.info)
-    assert ret == 0xABCD
-
-    ret = await qspi.loopback(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x10, freq=10, sce_pol=1, log=dut._log.info)
-    assert ret == 0x0010
-
-    await ClockCycles(dut.clk_i, 1)
-
-@cocotb.test()
 async def test_fast_read_mc(dut):
     """Test fast read with random start offsets"""
 

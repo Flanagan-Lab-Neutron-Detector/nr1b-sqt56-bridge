@@ -90,19 +90,15 @@ module xspi_phy_slave #(
     localparam WORD_SIZE_BITS = $clog2(WORD_SIZE);
 
     reg  [CYCLE_COUNT_BITS-1:0] cycle_counter;
-    wire [CYCLE_COUNT_BITS-1:0] txn_cycles; // calculated cycles for given txnbc_i
+    reg  [CYCLE_COUNT_BITS-1:0] txn_cycles; // calculated cycles for given txnbc_i
     wire [CYCLE_COUNT_BITS-1:0] outdata_index; // index of SPI word to present
     reg                   [2:0] bc_odd_mask; // mask low bits for extra cycle check
     wire                        sce_i_b; // negative sce so we can trigger on posedge for reset
+    wire                        cycle_stb;
 
     assign sce_i_b = !sce_i;
     assign outdata_index = txn_cycles - cycle_counter; // index of SPI word in data word
-
-    /*
-    always @(negedge sck_i or negedge sce_i)
-        if (!sce_i) sio_oe <= 1'b0;
-        else        sio_oe <= sce_i && txndir_i;
-    */
+    assign cycle_stb = (cycle_counter == txn_cycles);
 
     assign sio_oe = sce_i && txndir_i;
 
@@ -115,27 +111,28 @@ module xspi_phy_slave #(
         2'b10: bc_odd_mask = 3'b011;
         2'b11: bc_odd_mask = 3'b111;
     endcase
-    assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
+    //assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
+    always @(*)
+        txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
 
     // cycle counter
     always @(negedge sck_i or negedge sce_i)
         if (!sce_i) begin
             cycle_counter <= 'b0;
-        end else if (txndone_o) begin
+        end else if (cycle_stb) begin
             cycle_counter <= 'b0;
         end else begin
             cycle_counter <= cycle_counter + 'b1;
         end
 
     // signal done on POSITIVE edge
-    always @(posedge sck_i or posedge sce_i_b) // TODO: Should this be zero in reset?
+    always @(posedge sck_i or posedge sce_i_b)
         if (sce_i_b) txndone_o <= 1'b0;
-        else         txndone_o <= (cycle_counter == txn_cycles);
+        else         txndone_o <= cycle_stb;
 
     // SPI
 
     // set SPI outputs combinationally to avoid deciding when to latch
-    // TODO: CDC concerns
     always @(*) case(txnmode_i)
         2'b00: sio_o = { 7'b0, txndata_i[1*outdata_index[WORD_SIZE_BITS-1:0]   ] };
         2'b01: sio_o = { 6'b0, txndata_i[2*outdata_index[WORD_SIZE_BITS-1:0]+:2] };
