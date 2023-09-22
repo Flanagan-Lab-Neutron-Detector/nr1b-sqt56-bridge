@@ -8,10 +8,15 @@ async def with_delay(coro: cocotb.Task or cocotb.Coroutine, delay, units: str = 
     await Timer(delay, units)
     return await coro
 
-def start_sck(sck, freq: float):
-    T = 10*int(100000.0/freq) # freq (MHz) -> period (ps), rounded to 10ps
+def sim_period(freq: float):
+    #return 10*int(100000.0/freq) # freq (MHz) -> period (ps), rounded to 10ps
+    return (10*int(100000.0/freq))/1000.0 # freq (MHz) -> period (ns), rounded to 10ps
+
+def start_sck(sck, period: float, units='ns'):
+    #T = 10*int(100000.0/freq) # freq (MHz) -> period (ps), rounded to 10ps
+    #T = sim_period(freq)
     #log(f"[start_sck] starting sck with f={freq} => T={T} (rounded to 10 ps)")
-    sck_task = cocotb.start_soon(with_delay(Clock(sck, T, units='ps').start(), 11, 'ns'))
+    sck_task = cocotb.start_soon(with_delay(Clock(sck, period, units=units).start(), 1, 'ns'))
     return sck_task
 
 class SPI_MODE(Enum):
@@ -42,12 +47,24 @@ async def spi_write_msb(sio_i, sck, data: int, mode: SPI_MODE, cycles: int, init
 
 spi_write = spi_write_msb
 
-async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+async def spi_frame_begin(freq, sce, sck, sce_pol, toff=0):
+    sck_T = sim_period(freq)
     sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
+    await Timer(sck_T + toff, 'ns')
+    sck_task = start_sck(sck, sck_T, units='ns')
     #await ClockCycles(sck, 1)
+    return sck_task, sck_T
+
+async def spi_frame_end(frame, sce, sck, sce_pol):
+    sck_task, sck_T = frame
+    await Timer(sck_T, 'ns')
+    sck_task.kill()
+    sce.value = not sce_pol
+    sck.value = 0
+    await Timer(1, 'ns')
+
+async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send prog word command
     await spi_write(sio_i, sck, 0xF2, SPI_MODE.SINGLE, 8)
@@ -56,20 +73,12 @@ async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_
     # data
     await spi_write(sio_i, sck, data, SPI_MODE.QUAD, 4)
 
-    sck_task.kill()
-    await Timer(25, 'ns')
-    sce.value = not sce_pol
-    sck.value = 0
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
 
     log("[qspi.prog_word] done")
 
 async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
-    sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
-    #await ClockCycles(sck, 1)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send write through command
     await spi_write(sio_i, sck, 0xF8, SPI_MODE.SINGLE, 8)
@@ -78,18 +87,12 @@ async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, 
     # data
     await spi_write(sio_i, sck, data, SPI_MODE.QUAD, 4)
 
-    sck_task.kill()
-    sce.value = not sce_pol
-    sck.value = 0
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
+
     log("[qspi.write_through] done")
 
 async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 108, sce_pol=0, log=lambda s: None) -> None:
-    sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
-    #await ClockCycles(sck, 1)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send page prog command
     await spi_write(sio_i, sck, 0x02, SPI_MODE.SINGLE, 8)
@@ -104,17 +107,10 @@ async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 
     for w in words:
         await spi_write(sio_i, sck, w, SPI_MODE.QUAD, 4)
 
-    sck_task.kill()
-    sce.value = not sce_pol
-    sck.value = 0
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
 
 async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
-    sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
-    #await ClockCycles(sck, 1)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # command phase
     await spi_write(sio_i, sck, 0xD8, SPI_MODE.SINGLE, 8)
@@ -129,17 +125,10 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log
     #    sio_i.value = (addr >> 4*i) & 0xF
     #    await ClockCycles(sck, 1)
 
-    sck_task.kill()
-    sck.value = 0
-    sce.value = not sce_pol
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
 
 async def read_txn(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
-    sce.value = sce_pol
-    await Timer(2 + toff, 'ns')
-
-    sck_task = start_sck(sck, freq)
-    #await ClockCycles(sck, 1)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
     await spi_write(sio_i, sck, cmd, SPI_MODE.SINGLE, 8, init_wait=1)
@@ -161,12 +150,7 @@ async def read_txn(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float, cmd: 
         word |= (int(sio_o.value) & 0xF) << i*4
     log(f"[qspi.read_txn] data word = {word:04X}")
 
-    await FallingEdge(sck)
-    sck_task.kill()
-    sck.value = 0
-    await Timer(9, 'ns')
-    sce.value = not sce_pol
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
 
     return word
 
@@ -180,31 +164,19 @@ async def loopback(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float=100, s
     return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
 
 async def enter_vt(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
-    sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
     await spi_write(sio_i, sck, 0xFB, SPI_MODE.SINGLE, 8)
 
-    sck_task.kill()
-    sck.value = 0
-    sce.value = not sce_pol
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
     log("[qspi.enter_vt] done")
 
 async def reset(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
-    sce.value = sce_pol
-    await Timer(2, 'ns')
-
-    sck_task = start_sck(sck, freq)
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
     await spi_write(sio_i, sck, 0xF0, SPI_MODE.SINGLE, 8)
 
-    sck_task.kill()
-    sck.value = 0
-    sce.value = not sce_pol
-    await Timer(1, 'ns')
+    await spi_frame_end(frame, sce, sck, sce_pol)
     log("[qspi.reset] done")
