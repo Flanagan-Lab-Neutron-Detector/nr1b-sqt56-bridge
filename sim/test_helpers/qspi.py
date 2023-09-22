@@ -163,7 +163,7 @@ async def read_slow(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float = 50,
 async def loopback(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float=100, sce_pol=0, log=lambda s: None) -> int:
     return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
 
-async def enter_vt(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
+async def enter_vt(sio_i, sck, sce, freq: float=60, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
