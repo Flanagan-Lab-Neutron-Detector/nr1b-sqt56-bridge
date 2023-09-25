@@ -21,7 +21,7 @@ module qspi_ctrl_fsm #(
     output     [CYCLE_COUNT_BITS-1:0] txnbc_o,   // transaction bit count
     output                      [1:0] txnmode_o, // transaction mode, 00 = single SPI, 01 = dual SPI, 10 = quad SPI, 11 = octo SPI
     output                            txndir_o,  // transaction direction, 0 = read, 1 = write
-    output           [IOREG_BITS-1:0] txndata_o,
+    output reg       [IOREG_BITS-1:0] txndata_o,
     input            [IOREG_BITS-1:0] txndata_i,
     input                             txndone_i, // high for one cycle when data has been received
     input                             txnreset_i, // transaction reset (CE high)
@@ -58,7 +58,7 @@ module qspi_ctrl_fsm #(
                      SPI_STATE_READ_DATA       = 3'h3,
                      SPI_STATE_PROG_WORD_DATA  = 3'h4,
                      SPI_STATE_WRITE_THRU_DATA = 3'h5,
-                     SPI_STATE_LOOPBACK_DATA   = 3'h6,
+                     SPI_STATE_RFU_0           = 3'h6,
                      SPI_STATE_PAGE_PROG_DATA  = 3'h7;
 
     // synchronize SPI -> sys
@@ -86,9 +86,6 @@ module qspi_ctrl_fsm #(
     assign wb_adr_d = { nor_cmd, addr_q };
     // write direction
     wire wb_we;
-    // WB out data
-    reg [IOREG_BITS-1:0] txndata_wb;
-    assign txndata_o = (cmd_q == `SPI_COMMAND_LOOPBACK) ? { {(IOREG_BITS-ADDRBITS){1'b0}}, addr_q } : txndata_wb;
 
     // { [CYCLE_COUNT_BITS+3-1:3]=bit_count, [2:1]=mode, [0]=dir }
     reg [CYCLE_COUNT_BITS+3-1:0] txn_config_reg[8];
@@ -106,7 +103,7 @@ module qspi_ctrl_fsm #(
         txn_config_reg[3] = { DATABITS_RND[5:0], 2'b10, 1'b1 }; // READ DATA:         quad-SPI, output
         txn_config_reg[4] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // PROG WORD DATA:    quad-SPI, input
         txn_config_reg[5] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // WRITE THRU DATA:   quad-SPI, input
-        txn_config_reg[6] = { DATABITS_RND[5:0], 2'b10, 1'b1 }; // LOOPBACK DATA:     quad-SPI, output
+        txn_config_reg[6] = { 6'h08,             2'b00, 1'b0 }; // RFU 0            single-SPI, input, 8 cycles
         txn_config_reg[7] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // PAGE PROG DATA:    quad-SPI, input
     end
 
@@ -123,7 +120,7 @@ module qspi_ctrl_fsm #(
     sync2ps #(.R(1)) sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
 
     // QSPI state changes
-    always @(posedge clk_i or posedge spi_reset) begin
+    always @(posedge clk_i) begin
         if (spi_reset) spi_state <= SPI_STATE_CMD;
         else if (wstb_pe) case (spi_state)
             SPI_STATE_CMD:               spi_state <= SPI_STATE_ADDR;
@@ -132,7 +129,6 @@ module qspi_ctrl_fsm #(
                 `SPI_COMMAND_FAST_READ:  spi_state <= SPI_STATE_FAST_READ_STALL;
                 `SPI_COMMAND_PROG_WORD:  spi_state <= SPI_STATE_PROG_WORD_DATA;
                 `SPI_COMMAND_WRITE_THRU: spi_state <= SPI_STATE_WRITE_THRU_DATA;
-                `SPI_COMMAND_LOOPBACK:   spi_state <= SPI_STATE_LOOPBACK_DATA;
                 `SPI_COMMAND_PAGE_PROG:  spi_state <= SPI_STATE_PAGE_PROG_DATA;
                 default:                 spi_state <= SPI_STATE_CMD;
             endcase
@@ -172,10 +168,8 @@ module qspi_ctrl_fsm #(
 
     // request generation
     always @(posedge clk_i) begin
-        //if (reset_i)
-            wb_req <= 'b0;
+        wb_req <= 'b0;
         if (wstb_pe) case (spi_state)
-        //else case (spi_state)
             // cmd is txndata_i[7:0] on command cycle since cmd_q is latched on this cycle
             SPI_STATE_CMD: case (txndata_i[7:0])
                 `SPI_COMMAND_BULK_ERASE: wb_req <= 1'b1;
@@ -198,7 +192,7 @@ module qspi_ctrl_fsm #(
     assign wb_we = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
 
     // VT override control
-    always @(posedge clk_i or posedge reset_i)
+    always @(posedge clk_i)
         if (reset_i)
             vt_mode <= 1'b0;
         else if (txnreset_sync) begin
@@ -217,7 +211,7 @@ module qspi_ctrl_fsm #(
             wb_we_o  <= 'b0;
             wb_adr_o <= 'b0;
             wb_dat_o <= 'b0;
-            txndata_wb <= 'b0;
+            txndata_o <= 'b0;
         end else begin
             //if (wb_req && wstb_pe && !wb_cyc_o) begin
             if (wb_req && !wb_cyc_o) begin
@@ -231,9 +225,9 @@ module qspi_ctrl_fsm #(
                     wb_cyc_o  <= 1'b0;
                     wb_stb_o  <= 1'b0;
                     //wb_data_q <= wb_dat_i;
-                    txndata_wb[DATABITS-1:0] <= wb_dat_i;
+                    txndata_o[DATABITS-1:0] <= wb_dat_i;
                     // leftover bits set to zero
-                    txndata_wb[IOREG_BITS-1:DATABITS] <= 'b0;
+                    txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
                 end
             end else if (txnreset_sync) begin
                 wb_cyc_o <= 'b0;
