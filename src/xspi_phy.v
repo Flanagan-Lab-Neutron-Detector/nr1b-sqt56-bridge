@@ -119,7 +119,7 @@ module xspi_phy_slave #(
     always @(negedge sck_i or negedge sce_i)
         if (!sce_i) begin
             cycle_counter <= 'b0;
-        end else if (cycle_stb) begin
+        end else if (txndone_o) begin
             cycle_counter <= 'b0;
         end else begin
             cycle_counter <= cycle_counter + 'b1;
