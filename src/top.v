@@ -72,15 +72,15 @@ module top #(
     assign nor_we_o = nor_we_int && !vt_mode;
 
     // debug output
-    assign dbg_txnmode = txnmode;
-    assign dbg_txndir  = txndir;
+    assign dbg_txnmode = 'b0; //txnmode;
+    assign dbg_txndir  = 'b0; //txndir;
     //assign dbg_txndone = txndone;
-    assign dbg_txnbc   = txnbc;
-    assign dbg_txnmosi = txndata_mosi;
-    assign dbg_txnmiso = txndata_miso;
-    assign dbg_wb_ctrl_ack = wb_ctrl_ack;
-    assign dbg_wb_nor_stb = wb_nor_stb;
-    assign dbg_vt_mode = vt_mode;
+    assign dbg_txnbc   = 'b0; //txnbc;
+    assign dbg_txnmosi = 'b0; //txndata_mosi;
+    assign dbg_txnmiso = 'b0; //txndata_miso;
+    assign dbg_wb_ctrl_ack = 'b0; //wb_ctrl_ack;
+    assign dbg_wb_nor_stb = 'b0; //wb_nor_stb;
+    assign dbg_vt_mode = 'b0; //vt_mode;
 
     xspi_phy_io #(
         .IO_POL(1),
