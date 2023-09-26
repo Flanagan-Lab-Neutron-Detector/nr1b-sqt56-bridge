@@ -146,9 +146,9 @@ async def read_txn(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float, cmd: 
     for i in range(3, -1, -1):
         await RisingEdge(sck)
         assert sio_oe
-        log(f"[qspi.read_txn] data cycle {i} = {int(sio_o.value):04X}h")
+        log(f"[qspi.read_txn] data cycle {i} = {sio_o.value}h")
         word |= (int(sio_o.value) & 0xF) << i*4
-    log(f"[qspi.read_txn] data word = {word:04X}")
+    log(f"[qspi.read_txn] data word = {word}")
 
     await spi_frame_end(frame, sce, sck, sce_pol)
 

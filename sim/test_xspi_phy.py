@@ -22,6 +22,7 @@ async def setup(dut):
 
     #T = 21.5 # 46.5 MHz
     T = 15.15 # ~66 MHz
+    #T = 11.11 # ~90 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
     dut.rst_i.value = 1
@@ -49,7 +50,7 @@ async def test_fast_read(dut):
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
 
     ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=20, sce_pol=1, log=dut._log.info)
-    assert int(ret_val) == 0x3456
+    assert ret_val == 0x3456
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -76,7 +77,7 @@ async def test_slow_read(dut):
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=10000, stall_cycles=2, log=dut._log.info))
 
     ret_val = await qspi.read_slow(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=6, sce_pol=1, log=dut._log.info)
-    assert int(ret_val) == 0x3456
+    assert ret_val == 0x3456
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -138,8 +139,8 @@ async def test_clock_rate(dut):
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=data, timeout=timeout, stall_cycles=4, log=dut._log.info))
         #dut._log.info(f"starting read")
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=freq, sce_pol=1, log=dut._log.info)
-        #dut._log.info(f"Read {int(ret_val):X}")
-        assert int(ret_val) == data
+        #dut._log.info(f"Read {ret_val}")
+        assert ret_val == data
         #await ClockCycles(dut.clk_i, 1)
         #dut._log.info(f"Waiting on task")
         await Join(task)
@@ -246,7 +247,7 @@ async def test_fast_read_mc(dut):
         toff = 8.0 * random()
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=20, toff=toff, sce_pol=1)
-        assert int(ret_val) == 0x3456
+        assert ret_val == 0x3456
         await Join(task)
         await Timer(10, 'ns')
 
