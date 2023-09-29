@@ -29,7 +29,7 @@ VERILOG_SOURCES = \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/nor_bus.v \
-	$(SRCDIR)/fifo.v \
+	$(SRCDIR)/fsfifo.v \
 	$(SRCDIR)/sync2.v
 VERILOG_SOURCES += $(TB_DIR)/tb_$(TEST).v
 

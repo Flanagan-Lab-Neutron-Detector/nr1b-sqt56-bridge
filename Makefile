@@ -15,7 +15,7 @@ V_SRC = \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/qspi.v \
 	$(SRCDIR)/wb_nor_controller.v \
-	$(SRCDIR)/fifo.v \
+	$(SRCDIR)/fsfifo.v \
 	$(SRCDIR)/sync2.v
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
