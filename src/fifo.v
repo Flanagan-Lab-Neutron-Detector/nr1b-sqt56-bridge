@@ -1,6 +1,6 @@
-/** qspi.v
+/** fifo.v
  *
- * QSPI interface
+ * FIFOs
  *
  */
 
@@ -23,6 +23,9 @@ module fsfifo #(
     output reg [WIDTH-1:0] rd_data_o
 );
 
+    // TODO: Re-evaluate MAX_PATTERN approach
+    // TODO: Re-evaluate bypass register
+
     localparam DEPTH_BITS = $clog2(DEPTH);
     `define MAX_PATTERN { 1'b1, {(DEPTH_BITS){1'b0}} }
 
@@ -34,7 +37,9 @@ module fsfifo #(
     reg  [DEPTH_BITS:0] rdp, wrp;
     wire [DEPTH_BITS:0] filled; // number of slots currently filled
     assign filled  = wrp - rdp;
-    assign empty_o = filled == 'b0;
+    // either we're actually empty or there is a write this cycle
+    // and the FIFO can be read immediately
+    assign empty_o = (filled == 'b0) || write;
     assign full_o  = filled == `MAX_PATTERN;
 
     // read/write signals
