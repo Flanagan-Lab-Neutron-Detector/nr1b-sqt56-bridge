@@ -24,7 +24,6 @@ module fsfifo #(
 );
 
     // TODO: Re-evaluate MAX_PATTERN approach
-    // TODO: Re-evaluate bypass register
 
     localparam DEPTH_BITS = $clog2(DEPTH);
     `define MAX_PATTERN { 1'b1, {(DEPTH_BITS){1'b0}} }
@@ -37,14 +36,12 @@ module fsfifo #(
     reg  [DEPTH_BITS:0] rdp, wrp;
     wire [DEPTH_BITS:0] filled; // number of slots currently filled
     assign filled  = wrp - rdp;
-    // either we're actually empty or there is a write this cycle
-    // and the FIFO can be read immediately
-    assign empty_o = (filled == 'b0) || write;
+    assign empty_o = filled == 'b0;
     assign full_o  = filled == `MAX_PATTERN;
 
     // read/write signals
     wire read, write;
-    assign read = rd_i && !empty_o;
+    assign read  = rd_i && !empty_o;
     assign write = wr_i && !full_o;
 
     // increment pointers
@@ -55,21 +52,11 @@ module fsfifo #(
         if (reset_i)    wrp <= 'b0;
         else if (write) wrp <= wrp[DEPTH_BITS-1:0] + 'b1;
 
-    // bypass register to allow instant read after write
-    reg [WIDTH-1:0] write_bypass;
-    always @(posedge clk_i)
-        if (write) write_bypass <= wr_data_i;
-
     // read/write
     always @(posedge clk_i)
         if (write) mem[wrp[DEPTH_BITS-1:0]] <= wr_data_i;
-    //always @(posedge clk_i)
-    //    if (read) rd_data_o <= mem[rdp[DEPTH_BITS-1:0]];
-
-    // read bypass if empty, else read from mem
-    // verify
     always @(posedge clk_i)
-        if (read) rd_data_o <= empty_o ? write_bypass : mem[rdp[DEPTH_BITS-1:0]];
+        if (read) rd_data_o <= mem[rdp[DEPTH_BITS-1:0]];
 
 `ifdef FORMAL
     reg f_past_valid = 0;
@@ -100,8 +87,6 @@ module fsfifo #(
         cover(!full_o && $past(full_o));
         cover(empty_o && !$past(empty_o));
         cover(!empty_o && $past(empty_o));
-        cover(filled > 0);
-        cover(filled == 0);
         cover(!$past(full_o,2) && $past(full_o) && !full_o);
         cover($past(empty_o,2) && !$past(empty_o) && empty_o);
     end
