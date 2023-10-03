@@ -36,6 +36,14 @@ module tb_nor_bus (
     initial begin
         $dumpfile ("tb_nor_bus.vcd");
         $dumpvars (0, tb_nor_bus);
+        //$dumpvars (1, norbus.req_data[95:48]);
+        //$dumpvars (1, norbus.req_data[47:0]);
+        //$dumpvars (1, norbus.req_dv[0]);
+        //$dumpvars (1, norbus.req_dv[1]);
+        $dumpvars (1, norbus.request_fifo.mem[0]);
+        $dumpvars (1, norbus.request_fifo.mem[1]);
+        $dumpvars (1, norbus.request_fifo.mem[2]);
+        $dumpvars (1, norbus.request_fifo.mem[3]);
         //for (i = 0; i < 4; i = i + 1)
         //$dumpvars(1, tt2.cfg_buf[i]);
         #1;

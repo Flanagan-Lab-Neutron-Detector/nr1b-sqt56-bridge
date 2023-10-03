@@ -2,7 +2,7 @@
 
 from typing import Union
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, First, Timer
+from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer
 from array import array
 from enum import Enum
 
@@ -191,8 +191,8 @@ class nor_flash_behavioral_x16:
                 await FallingEdge(bus['ce'])
                 self.log(f"[flash] IDLE request ce={bus['ce'].value} oe={bus['oe'].value} we={bus['we'].value}")
                 if not bus['ce'].value: # we only care if CE is low TODO: fix this
-                    assert bus['we'].value or bus['oe'].value # only one should be asserted
-                    if not bus['we'].value and not self.busy:
+                    assert bus['we'].value or bus['oe'].value # at most one should be asserted
+                    if (not bus['we'].value) and (not self.busy):
                         await Timer(35, 'ns') # tWP
                         # now we sample the address and data
                         addr = int(bus['addr'].value)
@@ -214,17 +214,31 @@ class nor_flash_behavioral_x16:
                                 self.log(f"[flash] unset_busy: done")
                             await cocotb.start(unset_busy(wait_time))
                         self.if_state = self.bus_state.RECOVERY
-                    else: # must be OE
-                        self.log(f"[flash] IDLE request read")
-                        await Timer(25, 'ns') # tOE
+                    elif not bus['oe'].value:
+                        self.log(f"[flash] IDLE request read {int(bus['addr'].value):07X}h")
+                        await Timer(130, 'ns') # tACC, worst case
                         # TODO: status data
                         if self.busy:
                             raise Warning("status data is not yet implemented, reading memory")
                         bus['data_i'].value = self.read(int(bus['addr'].value))
-                        self.log(f"[flash] IDLE request read data={self.mem.read(bus['addr'].value)}")
+                        self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
                         #self.log(f"[flash] IDLE request read wait for end")
-                        await First(RisingEdge(bus['we']), RisingEdge(bus['oe']))
+                        last_addr = int(bus['addr'].value)
+                        await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
+                        await Timer(1, 'ns') # just to be sure
+                        while not bus['ce'].value and not bus['oe'].value: # address changed
+                            if (bus['addr'].value >> 3) == (last_addr >> 3):
+                                await Timer(25, 'ns') # tPACC
+                            else:
+                                await Timer(130, 'ns') # tACC, worst case
+                            bus['data_i'].value = self.read(int(bus['addr'].value))
+                            self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
+                            last_addr = int(bus['addr'].value)
+                            await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
+                            await Timer(1, 'ns') # just to be sure
                         self.if_state = self.bus_state.RECOVERY
+                    else:
+                        self.log("[flash] request while busy")
             elif self.if_state == self.bus_state.RECOVERY:
                 #self.log(f"[flash] RECOVERY")
                 await Timer(35, 'ns') # tCEH

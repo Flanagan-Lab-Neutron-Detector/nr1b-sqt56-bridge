@@ -252,11 +252,13 @@ async def test_pipeline(dut):
 
     addrs = [1, 2, 100, 1351, 38510]
 
-    async def set_data(oe, dat_i, N):
-        for i in range(N):
-            await FallingEdge(oe)
+    async def set_data(oe, ack, dat_i, N):
+        dat_i.value = 1
+        await FallingEdge(oe)
+        for i in range(1,N):
+            await RisingEdge(ack)
             dat_i.value = i+1
-    set_data_task = cocotb.start_soon(set_data(dut.nor_oe_o, dut.nor_data_i, len(addrs)))
+    set_data_task = cocotb.start_soon(set_data(dut.nor_oe_o, bus['ack'], dut.nor_data_i, len(addrs)))
 
     #dut.nor_data_i.value = 0x1357
     addr_data = await wb.multi_read(bus, addrs, timeout=1000, log=dut._log.info)
