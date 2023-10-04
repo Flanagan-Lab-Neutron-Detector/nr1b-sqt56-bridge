@@ -205,6 +205,7 @@ module qspi_ctrl_fsm #(
     // Wishbone control
 
     always @(posedge clk_i) begin
+        wb_stb_o <= 1'b0;
         if (reset_i) begin
             wb_cyc_o <= 'b0;
             wb_stb_o <= 'b0;
@@ -223,7 +224,6 @@ module qspi_ctrl_fsm #(
             end else if (wb_cyc_o) begin
                 if (wb_ack_i) begin
                     wb_cyc_o  <= 1'b0;
-                    wb_stb_o  <= 1'b0;
                     //wb_data_q <= wb_dat_i;
                     txndata_o[DATABITS-1:0] <= wb_dat_i;
                     // leftover bits set to zero
