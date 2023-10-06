@@ -24,6 +24,7 @@ async def read(bus: dict, addr: int, timeout=0) -> int:
             await with_timeout(trig, timeout, 'ns')
         else:
             await trig
+    await ClockCycles(bus['clk'], 1)
 
     bus['cyc'].value = 0
 
@@ -46,7 +47,7 @@ async def multi_read(bus: dict, addrs: Iterator[int], timeout=0, log=lambda a: N
                 log("[multi_read.send_reads] awaiting end of stall")
                 await FallingEdge(stall)
                 await ClockCycles(clk, 1)
-            log(f"[multi_read.send_reads] stb a={a}")
+            log(f"[multi_read.send_reads] stb a={a:X}")
             stb.value = 1
             adr.value = a
             await ClockCycles(clk, 1)
@@ -62,7 +63,7 @@ async def multi_read(bus: dict, addrs: Iterator[int], timeout=0, log=lambda a: N
                 log(f"[multi_read.collect_data] {i}: awaiting ack")
                 await RisingEdge(ack)
                 await FallingEdge(clk)
-            log(f"[multi_read.collect_data] {i}: got dat={int(dat.value)}")
+            log(f"[multi_read.collect_data] {i}: got dat={int(dat.value):04X}")
             data.append(dat.value)
             #await RisingEdge(clk)
             await ClockCycles(clk, 1, rising=False)
@@ -113,6 +114,7 @@ async def write(bus: dict, addr: int, data: int) -> None:
 
     await ClockCycles(bus['clk'], 1)
     bus['stb'].value = 0
+    bus['we'].value  = 0
 
     if not bus['ack'].value:
         await RisingEdge(bus['ack'])
@@ -165,7 +167,7 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
         await FallingEdge(bus['clk'])
         log(f"[multi_expect] got a={int(bus['adr']):x}, send d={int(data):x}")
         assert bus['cyc'].value == 1
-        assert bus['we'].value == 1
+        assert bus['we'].value == 0
         assert bus['adr'].value == adr
 
         if stall_cycles > 0:
