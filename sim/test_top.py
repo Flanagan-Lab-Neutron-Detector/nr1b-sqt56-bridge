@@ -183,12 +183,15 @@ async def test_write_through(dut):
     pa = 0x55
     pd = 0x98
     await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
-    await ClockCycles(dut.clk_i, 10)
+    await Timer(100, 'ns')
 
     # Now we can read CFI data. First three words are 0x0051 0x0052 0x0059
     Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     assert Q == 0x0051
     assert R == 0x0052
     assert Y == 0x0059
@@ -197,12 +200,15 @@ async def test_write_through(dut):
     pa = 0
     pd = 0xF0
     await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
-    await ClockCycles(dut.clk_i, 10)
+    await Timer(100, 'ns')
 
     # read array data
     Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
     assert Q == 0xFFFF
     assert R == 0xFFFF
     assert Y == 0xFFFF
