@@ -144,7 +144,7 @@ async def test_clock_rate(dut):
         #await ClockCycles(dut.clk_i, 1)
         #dut._log.info(f"Waiting on task")
         await Join(task)
-        await Timer(10, 'ns')
+        await Timer(50, 'ns')
         #dut._log.info(f"Done")
     await ClockCycles(dut.clk_i, 1)
 
@@ -249,7 +249,7 @@ async def test_fast_read_mc(dut):
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=20, toff=toff, sce_pol=1)
         assert ret_val == 0x3456
         await Join(task)
-        await Timer(10, 'ns')
+        await Timer(50, 'ns')
 
     # restart dump
     dut.t_dumpb.value = 0
