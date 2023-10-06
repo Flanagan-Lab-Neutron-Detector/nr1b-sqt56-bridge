@@ -1,7 +1,7 @@
 from typing import Tuple, Iterator
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Join
 from test_helpers import wb
 
 async def setup(dut):
@@ -163,7 +163,8 @@ async def test_ext_command(dut):
     # Let's select sector 5
     await wb.write(bus_s, 0x0C050000, 0)
 
-    stub_routine.kill()
+    #stub_routine.kill()
+    await Join(stub_routine)
     await ClockCycles(dut.clk_i, 4)
 
 @cocotb.test()
@@ -224,4 +225,124 @@ async def test_error(dut):
     bus_s['we'].value  = 0
     stub_routine.kill()
     await ClockCycles(dut.clk_i, 4)
+
+@cocotb.test(skip=True)
+async def test_cmd_fifo(dut):
+    """Test sending a multicycle command into a fifo"""
+
+    await setup(dut)
+
+    bus_s = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbs_cyc_i,
+          'stb': dut.wbs_stb_i,
+           'we': dut.wbs_we_i,
+          'adr': dut.wbs_adr_i,
+        'dat_o': dut.wbs_dat_i,
+          'err': dut.wbs_err_o,
+        'stall': dut.wbs_stall_o,
+          'ack': dut.wbs_ack_o,
+        'dat_i': dut.wbs_dat_o
+    }
+
+    bus = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbm_cyc_o,
+          'stb': dut.wbm_stb_o,
+           'we': dut.wbm_we_o,
+          'adr': dut.wbm_adr_o,
+        'dat_o': dut.wbm_dat_i,
+        'stall': dut.wbm_stall_i,
+          'ack': dut.wbm_ack_i,
+        'dat_i': dut.wbm_dat_o
+    }
+
+    erase_sector_pairs = [
+        (0x555, 0xaa),
+        (0x2aa, 0x55),
+        (0x555, 0x80),
+        (0x555, 0xaa),
+        (0x2aa, 0x55),
+        (0x50000, 0x30)
+    ]
+    stub = wb.slave_write_multi_expect(bus, erase_sector_pairs, timeout=100, stall_cycles=2, log=dut._log.info)
+    stub_routine = cocotb.start_soon(stub)
+
+    # send erase sector command
+    # top 6 bits are command, erase sector is 6'b000011
+    # bottom 26 are address, of which top 10 are sector address. Here data doesn't matter
+    # Let's select sector 5
+    await wb.write(bus_s, 0x0C050000, 0)
+
+    #stub_routine.kill()
+    await Join(stub_routine)
+    await ClockCycles(dut.clk_i, 4)
+
+@cocotb.test()
+async def test_multiread(dut):
+    """Test read"""
+
+    await setup(dut)
+
+    bus_s = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbs_cyc_i,
+          'stb': dut.wbs_stb_i,
+           'we': dut.wbs_we_i,
+          'adr': dut.wbs_adr_i,
+        'dat_o': dut.wbs_dat_o,
+          'err': dut.wbs_err_o,
+        'stall': dut.wbs_stall_o,
+          'ack': dut.wbs_ack_o,
+        'dat_i': dut.wbs_dat_i
+    }
+
+    bus = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wbm_cyc_o,
+          'stb': dut.wbm_stb_o,
+           'we': dut.wbm_we_o,
+          'adr': dut.wbm_adr_o,
+        'dat_o': dut.wbm_dat_i,
+        'stall': dut.wbm_stall_i,
+          'ack': dut.wbm_ack_i,
+        'dat_i': dut.wbm_dat_o
+    }
+
+    read_pairs = [
+        (0x1000, 0xAAA0),
+        (0x1001, 0xAAA1),
+        (0x1002, 0xAAA2),
+        (0x1003, 0xAAA3),
+        (0x1004, 0xAAA4),
+        (0x1005, 0xAAA5),
+        (0x1006, 0xAAA6),
+        (0x1007, 0xAAA7),
+        (0x1008, 0xAAA8),
+        (0x1009, 0xAAA9),
+        (0x100A, 0xAAAA),
+        (0x100B, 0xAAAB),
+        (0x100C, 0xAAAC),
+        (0x100D, 0xAAAD),
+        (0x100E, 0xAAAE),
+        (0x100F, 0xAAAF),
+        (0x1010, 0xAAB0)
+    ]
+
+    read_task = cocotb.start_soon(wb.slave_read_multi_expect(bus, read_pairs, timeout=10000, stall_cycles=0, log=dut._log.info))
+
+    addr_data = await wb.multi_read(bus_s, [a for a,_ in read_pairs], timeout=10000, log=dut._log.info)
+    assert len(addr_data) == len(read_pairs)
+    for i in range(len(addr_data)):
+        a1, d1 = read_pairs[i]
+        a2, d2 = addr_data[i]
+        assert a1 == a2
+        assert d2 == d2
+
+    await Join(read_task)
+    await ClockCycles(dut.clk_i, 1)
 

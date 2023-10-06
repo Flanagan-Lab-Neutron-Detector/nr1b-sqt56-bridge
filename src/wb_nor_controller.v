@@ -34,8 +34,8 @@ module wb_nor_controller #(
     output                    wbs_stall_o,
 
     // wishbone master
-    output     [ADDRBITS-1:0] wbm_adr_o,
-    output     [DATABITS-1:0] wbm_dat_o,
+    output reg [ADDRBITS-1:0] wbm_adr_o,
+    output reg [DATABITS-1:0] wbm_dat_o,
     output reg                wbm_we_o,
     output reg                wbm_stb_o,
     output reg                wbm_cyc_o,
@@ -49,17 +49,23 @@ module wb_nor_controller #(
                      NOR_CMD_CYCLE_0 = 2'b01,
                      NOR_CMD_CYCLE_1 = 2'b10;
 
-    reg  [1:0] state;
-    reg  [2:0] cycle;
-    wire [2:0] cycle_next;
+    reg           [1:0] state;
+    reg           [2:0] cycle;
+    wire          [2:0] cycle_next;
+    wire                cycle_done;
     reg  [ADDRBITS+CMDBITS-1:0] cmd_latch;
     reg  [DATABITS-1:0] data_latch;
     wire [ADDRBITS-1:0] cmd_addr;
     wire  [CMDBITS-1:0] cmd_cmd;
-    assign cycle_next = cycle + 3'b1;
+    wire                cmd_is_read, req_cmd_is_read;
+    assign cycle_next = cycle + 'b1;
+    //assign cycle_done = cycle_next == cycle_cnt;
+    assign cycle_done = cycle == cycle_cnt;
 
     // decode command vs. address bits
     assign { cmd_cmd, cmd_addr } = { cmd_latch[ADDRBITS+CMDBITS-1:ADDRBITS], cmd_latch[ADDRBITS-1:0] };
+    assign cmd_is_read     = cmd_cmd == 'b0;
+    assign req_cmd_is_read = wbs_adr_i[ADDRBITS+CMDBITS-1:ADDRBITS] == 'b0;
 
     // command rom signals
     wire          [2:0] cycle_cnt;
@@ -78,74 +84,99 @@ module wb_nor_controller #(
         .cycle_cnt_o(cycle_cnt)
     );
 
-    assign wbm_adr_o = cycle_addr_sel[cycle] ? cmd_addr   : cycle_addr;
-    assign wbm_dat_o = cycle_data_sel[cycle] ? data_latch : cycle_data;
-
+    // wishbone and module management
     reg busy;
-    assign wbs_stall_o = busy;
-
+    assign wbs_stall_o = busy || (wbs_cyc_i && wbs_stb_i);
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wbs_cyc_i || wbs_err_o;
-
+    assign mod_reset = wb_rst_i || wbs_err_o || (!wbs_cyc_i && (cmd_is_read || !busy));
     assign wbs_err_o = wbm_err_i || cycle_err;
 
+    // keep track of in-flight requests
+    reg [5:0] inflight;
+    wire      none_inflight;
+    // none_inflight is true if there are no in-flight requests AND we are not sending one this cycle
+    assign none_inflight = (inflight == 'b0) && !(wbm_cyc_o && wbm_stb_o);
     always @(posedge wb_clk_i) begin
+        if (mod_reset)                    inflight <= 'b0;
+        else if (wbm_stb_o && !wbm_ack_i) inflight <= inflight + 'b1;
+        else if (wbm_ack_i && !wbm_stb_o) inflight <= inflight - 'b1;
+        else                              inflight <= inflight;
+    end
+
+    // Pass reads up the chain
+    reg  write_ack, read_ack;
+    assign wbs_ack_o = write_ack || read_ack;
+    always @(posedge wb_clk_i) begin
+        read_ack   <= 'b0;
         if (mod_reset) begin
-            busy       <= 1'b0;
-            wbs_ack_o  <= 1'b0;
+            wbs_dat_o    <= 'b0;
+        end else if (wbs_cyc_i) begin
+            if (wbm_cyc_o && wbm_ack_i && cmd_is_read) begin
+                wbs_dat_o <= wbm_dat_i;
+                read_ack  <= 'b1;
+            end
+        end
+    end
+
+    always @(posedge wb_clk_i) begin
+        write_ack <= 'b0;
+        wbm_stb_o <= 'b0;
+        wbm_we_o  <= 'b0;
+        if (mod_reset) begin
+            busy       <= 'b0;
             state      <= NOR_CMD_IDLE;
-            cycle      <= 3'b0;
-            cmd_latch  <=  'b0;
-            data_latch <=  'b0;
-            wbm_cyc_o  <= 1'b0;
-            wbm_stb_o  <= 1'b0;
-        end else if (wbs_stb_i && !wbs_stall_o) begin
+            cycle      <= 'b0;
+            cmd_latch  <= 'b0;
+            data_latch <= 'b0;
+            wbm_cyc_o  <= 'b0;
+        end else if (wbs_cyc_i && wbs_stb_i && !busy) begin
             // latch inputs
             cmd_latch  <= wbs_adr_i;
             data_latch <= wbs_dat_i;
-            // decode cmd to load cycle info
-            // kick off state machine
-            busy       <= 1'b1;
-            wbs_ack_o  <= 1'b0;
-            cycle      <= 3'b0;
-            state      <= NOR_CMD_CYCLE_0;
-        end else case (state)
-            NOR_CMD_CYCLE_0: begin
-                if (!wbm_stall_i) begin
-                    wbm_cyc_o <= 1'b1;
-                    wbm_stb_o <= 1'b1;
-                    // wbm_adr_o and wbm_dat_o set above
-                    if (cmd_cmd == 6'b0) // cmd == 0 => read
-                        wbm_we_o <= 1'b0;
-                    else
-                        wbm_we_o <= 1'b1;
-                    state     <= NOR_CMD_CYCLE_1;
-                end
-            end
-            NOR_CMD_CYCLE_1: begin
-                wbm_stb_o <= 1'b0;
-                wbm_we_o  <= 1'b0;
-                if (wbm_ack_i) begin
-                    wbm_cyc_o <= 1'b0;
-                    if (cmd_cmd == 6'b0)
-                        wbs_dat_o <= wbm_dat_i;
-                    if (cycle_next == cycle_cnt) begin
-                        wbs_ack_o <= 1'b1;
-                        cycle     <= 3'b0;
-                        state     <= NOR_CMD_IDLE;
-                    end else begin
-                        cycle     <= cycle_next;
-                        state     <= NOR_CMD_CYCLE_0;
-                    end
-                end
-            end
-            default: begin
-                busy      <= 1'b0;
-                cycle     <= 3'b0;
-                wbs_ack_o <= 1'b0;
+            if (req_cmd_is_read && !wbm_stall_i) begin
+                busy      <= 'b0;
+                cycle     <= 'b1;
                 state     <= NOR_CMD_IDLE;
+                wbm_cyc_o <= 'b1;
+                wbm_stb_o <= 'b1;
+                wbm_adr_o <= wbs_adr_i[ADDRBITS-1:0];
+                wbm_dat_o <= wbs_dat_i;
+            end else begin
+                // kick off state machine
+                // reads while stalling go through here
+                busy      <= 'b1;
+                cycle     <= 'b0;
+                state     <= NOR_CMD_CYCLE_0;
             end
-        endcase
+        end else if (wbm_cyc_o && cycle_done && none_inflight) begin
+            wbm_cyc_o  <= 'b0;
+            cycle      <= 'b0;
+            state      <= NOR_CMD_IDLE;
+            busy       <= 'b0;
+            write_ack  <= !cmd_is_read;
+            //wbs_dat_o    <= wbm_dat_i;
+        end else begin
+            if (!cycle_done) begin
+                case (state)
+                    NOR_CMD_CYCLE_0: begin
+                        if (!wbm_stall_i) begin
+                            wbm_cyc_o <= 1'b1;
+                            wbm_stb_o <= 1'b1;
+                            wbm_adr_o <= cycle_addr_sel[cycle] ? cmd_addr   : cycle_addr;
+                            wbm_dat_o <= cycle_data_sel[cycle] ? data_latch : cycle_data;
+                            wbm_we_o  <= !cmd_is_read;
+                            state     <= NOR_CMD_CYCLE_1;
+                        end
+                    end
+                    NOR_CMD_CYCLE_1: begin
+                        cycle <= cycle_next;
+                        state <= NOR_CMD_CYCLE_0;
+                    end
+                    default: begin
+                    end
+                endcase
+            end
+        end
     end
 
     // Formal verification
