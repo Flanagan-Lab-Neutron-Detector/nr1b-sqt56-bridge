@@ -49,8 +49,8 @@ async def test_fast_read(dut):
     }
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
 
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=20, sce_pol=1, log=dut._log.info)
-    assert ret_val == 0x3456
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=20, sce_pol=1, log=dut._log.info)
+    assert ret_val[0] == 0x3456
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -76,8 +76,8 @@ async def test_slow_read(dut):
 
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=10000, stall_cycles=2, log=dut._log.info))
 
-    ret_val = await qspi.read_slow(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=6, sce_pol=1, log=dut._log.info)
-    assert ret_val == 0x3456
+    ret_val = await qspi.read_slow(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=6, sce_pol=1, log=dut._log.info)
+    assert ret_val[0] == 0x3456
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -138,9 +138,9 @@ async def test_clock_rate(dut):
         data = 0x3456 ^ i
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=data, timeout=timeout, stall_cycles=4, log=dut._log.info))
         #dut._log.info(f"starting read")
-        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=freq, sce_pol=1, log=dut._log.info)
+        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=freq, sce_pol=1, log=dut._log.info)
         #dut._log.info(f"Read {ret_val}")
-        assert ret_val == data
+        assert ret_val[0] == data
         #await ClockCycles(dut.clk_i, 1)
         #dut._log.info(f"Waiting on task")
         await Join(task)
@@ -219,6 +219,58 @@ async def test_page_prog(dut):
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
 
+@cocotb.test(skip=False)
+async def test_sequential_reads(dut):
+    """Test reading a sequence of words in one transaction"""
+
+    await setup(dut)
+
+    bus_wb = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wb_cyc_o,
+          'stb': dut.wb_stb_o,
+           'we': dut.wb_we_o,
+          'adr': dut.wb_adr_o,
+        'dat_o': dut.wb_dat_i,
+        'stall': dut.wb_stall_i,
+          'ack': dut.wb_ack_i,
+        'dat_i': dut.wb_dat_o
+    }
+
+    pairs = [
+        (0x100, 0xFFFF),
+        (0x101, 0xFEFE),
+        (0x102, 0xFDFD),
+        (0x103, 0xFCFC),
+        (0x104, 0xFBFB),
+        (0x105, 0xFAFA),
+        (0x106, 0xF9F9),
+        (0x107, 0xF8F8),
+        (0x108, 0xF7F7),
+        (0x109, 0xF6F6),
+        (0x10A, 0xF5F5),
+        (0x10B, 0xF4F4),
+        (0x10C, 0xF3F3),
+        (0x10D, 0xF2F2),
+        (0x10E, 0xF1F1),
+        (0x10F, 0xF0F0),
+        (0x110, 0x0F0F),
+        (0x111, 0x1F1F),
+        (0x112, 0x2F2F),
+        (0x113, 0x3F3F)
+    ]
+
+    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=2, log=dut._log.info))
+
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    for i,p in enumerate(pairs):
+        _, w = p
+        assert ret_val[i] == w
+
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
+
 @cocotb.test()
 async def test_fast_read_mc(dut):
     """Test fast read with random start offsets"""
@@ -246,8 +298,8 @@ async def test_fast_read_mc(dut):
         # clk period is 8ns, sck period is 16.67ns, so pick toff in [0, 8]ns
         toff = 8.0 * random()
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
-        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, freq=20, toff=toff, sce_pol=1)
-        assert ret_val == 0x3456
+        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=20, toff=toff, sce_pol=1)
+        assert ret_val[0] == 0x3456
         await Join(task)
         await Timer(50, 'ns')
 
