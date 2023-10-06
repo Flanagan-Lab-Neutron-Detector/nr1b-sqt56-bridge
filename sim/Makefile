@@ -25,7 +25,7 @@ COCOTB_RESULTS_FILE ?= $(SIMDIR)/results.xml
 VERILOG_SOURCES = \
 	$(SRCDIR)/cmd_defs.vh \
 	$(SRCDIR)/top.v \
-	$(SRCDIR)/qspi.v \
+	$(SRCDIR)/qspi_ctrl_fsm.v \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/nor_bus.v \
