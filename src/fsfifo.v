@@ -56,7 +56,20 @@ module fsfifo #(
     always @(posedge clk_i)
         if (write) mem[wrp[DEPTH_BITS-1:0]] <= wr_data_i;
     always @(posedge clk_i)
+`ifdef SIM
+        if (reset_i) rd_data_o <= {(WIDTH){1'bx}};
+        else
+`endif
         if (read) rd_data_o <= mem[rdp[DEPTH_BITS-1:0]];
+
+`ifdef SIM
+    generate
+        genvar i;
+        for (i = 0; i < DEPTH; i = i + 1) begin
+            always @(posedge clk_i) if (reset_i) mem[i] = {(WIDTH){1'bx}};
+        end
+    endgenerate
+`endif
 
 `ifdef FORMAL
     reg f_past_valid = 0;
