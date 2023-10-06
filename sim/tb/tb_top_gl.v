@@ -44,6 +44,9 @@ module tb_top_gl (
     initial begin
         $dumpfile ("tb_top_gl.vcd");
         $dumpvars (0, tb_top_gl);
+        `ifdef SDF_FILENAME
+            $sdf_annotate (`SDF_FILENAME, top);
+        `endif
         //for (i = 0; i < 4; i = i + 1)
         //$dumpvars(1, tt2.cfg_buf[i]);
         #1;

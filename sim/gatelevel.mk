@@ -8,12 +8,15 @@ TB_DIR ?= $(PWD)/tb
 BUILDDIR ?= $(PWD)/../build
 
 TOPLEVEL_LANG ?= verilog
-SIM ?= icarus #verilator
+SIM ?= icarus
 
 ifeq ($(SIM),verilator)
 EXTRA_ARGS += --trace --trace-structs
+else ifeq ($(SIM),icarus)
+COMPILE_ARGS += -gspecify
 endif
-COMPILE_ARGS += -I$(SRCDIR)
+COMPILE_ARGS += -D SIM=1 -I$(SRCDIR)
+#COMPILE_ARGS += -DSDF_FILENAME="\"../build/nisoc-bridge.sdf\""
 
 TEST ?= top
 
