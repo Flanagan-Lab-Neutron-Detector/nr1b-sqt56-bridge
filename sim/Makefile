@@ -12,7 +12,7 @@ SIM ?= icarus #verilator
 ifeq ($(SIM),verilator)
 EXTRA_ARGS += --trace --trace-structs
 endif
-COMPILE_ARGS += -I$(SRCDIR)
+COMPILE_ARGS += -D SIM=1 -I$(SRCDIR)
 
 TEST ?= top
 
