@@ -29,7 +29,7 @@ module wb_nor_controller #(
     input                     wbs_stb_i,
     input                     wbs_cyc_i,
     output                    wbs_err_o,
-    output reg                wbs_ack_o,
+    output                    wbs_ack_o,
     output reg [DATABITS-1:0] wbs_dat_o,
     output                    wbs_stall_o,
 
