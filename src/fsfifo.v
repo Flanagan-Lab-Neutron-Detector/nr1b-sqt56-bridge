@@ -15,6 +15,7 @@ module fsfifo #(
     input  clk_i, reset_i,
     // status
     output full_o, empty_o,
+    output [$clog2(DEPTH):0] filled_o,
     // write port
     input  wr_i,
     input  [WIDTH-1:0] wr_data_i,
@@ -22,8 +23,6 @@ module fsfifo #(
     input  rd_i,
     output reg [WIDTH-1:0] rd_data_o
 );
-
-    // TODO: Re-evaluate MAX_PATTERN approach
 
     localparam DEPTH_BITS = $clog2(DEPTH);
     `define MAX_PATTERN { 1'b1, {(DEPTH_BITS){1'b0}} }
@@ -34,10 +33,9 @@ module fsfifo #(
     // read/write pointers
     // one extra bit for full/empty detection
     reg  [DEPTH_BITS:0] rdp, wrp;
-    wire [DEPTH_BITS:0] filled; // number of slots currently filled
-    assign filled  = wrp - rdp;
-    assign empty_o = filled == 'b0;
-    assign full_o  = filled == `MAX_PATTERN;
+    assign filled_o  = wrp - rdp;
+    assign empty_o = filled_o == 'b0;
+    assign full_o  = filled_o == `MAX_PATTERN;
 
     // read/write signals
     wire read, write;
@@ -47,10 +45,10 @@ module fsfifo #(
     // increment pointers
     always @(posedge clk_i)
         if (reset_i)    rdp <= 'b0;
-        else if (read)  rdp <= rdp[DEPTH_BITS-1:0] + 'b1;
+        else if (read)  rdp <= rdp + 'b1;
     always @(posedge clk_i)
         if (reset_i)    wrp <= 'b0;
-        else if (write) wrp <= wrp[DEPTH_BITS-1:0] + 'b1;
+        else if (write) wrp <= wrp + 'b1;
 
     // read/write
     always @(posedge clk_i)
@@ -76,11 +74,11 @@ module fsfifo #(
     always @(posedge clk_i) f_past_valid = 1;
     initial assume(reset_i);
 
-    always @(*) assert(empty_o == (filled == 'b0));
-    always @(*) assert(full_o == (filled == `MAX_PATTERN));
+    always @(*) assert(empty_o == (filled_o == 'b0));
+    always @(*) assert(full_o == (filled_o == `MAX_PATTERN));
 
     always @(*) assert(!full_o || !empty_o);
-    //always @(*) if (f_past_valid) assert(filled <= `MAX_PATTERN);
+    //always @(*) if (f_past_valid) assert(filled_o <= `MAX_PATTERN);
 
     always @(posedge clk_i) begin
         if (f_past_valid && !reset_i && !$past(reset_i) && !$past(full_o) && $past(wr_i))
