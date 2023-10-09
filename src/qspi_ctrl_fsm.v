@@ -82,10 +82,8 @@ module qspi_ctrl_fsm #(
     reg wb_req;
     // NOR command is packed into the top 6 bits of address
     reg  [5:0] nor_cmd;
-    wire [31:0] wb_adr_d;
-    assign wb_adr_d = { nor_cmd, addr_q };
     // write direction
-    wire wb_we;
+    wire cmd_is_write;
 
     // { [CYCLE_COUNT_BITS+3-1:3]=bit_count, [2:1]=mode, [0]=dir }
     reg [CYCLE_COUNT_BITS+3-1:0] txn_config_reg[8];
@@ -120,22 +118,26 @@ module qspi_ctrl_fsm #(
     sync2ps #(.R(1)) sync_txnreset (.clk(clk_i), .rst(reset_i), .d(txnreset_i), .q(txnreset_sync));
 
     // QSPI state changes
-    always @(posedge clk_i) begin
-        if (spi_reset) spi_state <= SPI_STATE_CMD;
-        else if (wstb_pe) case (spi_state)
-            SPI_STATE_CMD:               spi_state <= SPI_STATE_ADDR;
+    always @(*) begin
+        case (spi_state)
+            SPI_STATE_CMD:               spi_state_next = SPI_STATE_ADDR;
             SPI_STATE_ADDR: case (cmd_q)
-                `SPI_COMMAND_READ:       spi_state <= SPI_STATE_READ_DATA;
-                `SPI_COMMAND_FAST_READ:  spi_state <= SPI_STATE_FAST_READ_STALL;
-                `SPI_COMMAND_PROG_WORD:  spi_state <= SPI_STATE_PROG_WORD_DATA;
-                `SPI_COMMAND_WRITE_THRU: spi_state <= SPI_STATE_WRITE_THRU_DATA;
-                `SPI_COMMAND_PAGE_PROG:  spi_state <= SPI_STATE_PAGE_PROG_DATA;
-                default:                 spi_state <= SPI_STATE_CMD;
+                `SPI_COMMAND_READ:       spi_state_next = SPI_STATE_READ_DATA;
+                `SPI_COMMAND_FAST_READ:  spi_state_next = SPI_STATE_FAST_READ_STALL;
+                `SPI_COMMAND_PROG_WORD:  spi_state_next = SPI_STATE_PROG_WORD_DATA;
+                `SPI_COMMAND_WRITE_THRU: spi_state_next = SPI_STATE_WRITE_THRU_DATA;
+                `SPI_COMMAND_PAGE_PROG:  spi_state_next = SPI_STATE_PAGE_PROG_DATA;
+                default:                 spi_state_next = SPI_STATE_CMD;
             endcase
-            SPI_STATE_FAST_READ_STALL:   spi_state <= SPI_STATE_READ_DATA;
-            SPI_STATE_PAGE_PROG_DATA:    spi_state <= SPI_STATE_PAGE_PROG_DATA;
-            default:                     spi_state <= SPI_STATE_CMD;
+            SPI_STATE_FAST_READ_STALL:   spi_state_next = SPI_STATE_READ_DATA;
+            SPI_STATE_READ_DATA:         spi_state_next = SPI_STATE_READ_DATA; // continuous reads
+            SPI_STATE_PAGE_PROG_DATA:    spi_state_next = SPI_STATE_PAGE_PROG_DATA;
+            default:                     spi_state_next = SPI_STATE_CMD;
         endcase
+    end
+    always @(posedge clk_i) begin
+        if (spi_reset)    spi_state <= SPI_STATE_CMD;
+        else if (wstb_pe) spi_state <= spi_state_next;
     end
 
     // latch data
@@ -169,7 +171,9 @@ module qspi_ctrl_fsm #(
     // request generation
     always @(posedge clk_i) begin
         wb_req <= 'b0;
-        if (wstb_pe) case (spi_state)
+        if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_FAST_READ_STALL)) && !txnreset_sync) begin
+            wb_req <= 'b1;
+        end else if (wstb_pe) case (spi_state)
             // cmd is txndata_i[7:0] on command cycle since cmd_q is latched on this cycle
             SPI_STATE_CMD: case (txndata_i[7:0])
                 `SPI_COMMAND_BULK_ERASE: wb_req <= 1'b1;
@@ -189,7 +193,7 @@ module qspi_ctrl_fsm #(
     end
 
     // request write status
-    assign wb_we = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
+    assign cmd_is_write = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
 
     // VT override control
     always @(posedge clk_i)
@@ -202,39 +206,124 @@ module qspi_ctrl_fsm #(
                 vt_mode <= 1'b0;
         end
 
+    // Address counter for sequential reads
+    reg [ADDRBITS-1:0] addr_counter;
+    always @(posedge clk_i)
+        if (spi_reset) addr_counter <= 'b0;
+        else if (wb_req && !wb_stall_i && !cmd_is_write && !wb_cyc_o && !req_pipe_full)
+                       addr_counter <= addr_q + 'b1;
+        //else if (wb_cyc_o && !cmd_is_write && wb_ack_i)
+        else if (wb_req && !wb_stall_i && !cmd_is_write && !req_pipe_full)
+                       addr_counter <= addr_counter + 'b1;
+
+    // fifo for sequential read data
+    wire                fifo_full, fifo_empty;
+    reg                 fifo_wr, fifo_rd;
+    reg  [DATABITS-1:0] fifo_wr_data;
+    wire [DATABITS-1:0] fifo_rd_data;
+    wire          [4:0] fifo_filled;
+    fsfifo #(.WIDTH(DATABITS), .DEPTH(16)) read_fifo (
+        .clk_i(clk_i), .reset_i(spi_reset),
+        .full_o(fifo_full), .empty_o(fifo_empty), .filled_o(fifo_filled),
+        .wr_i(fifo_wr), .wr_data_i(fifo_wr_data),
+        .rd_i(fifo_rd), .rd_data_o(fifo_rd_data)
+    );
+
+    // send read data
+    reg read_this_cycle;
+    always @(posedge clk_i) begin
+        if (spi_reset || wstb_pe) read_this_cycle <= 'b0;
+
+        fifo_rd <= 'b0;
+        if (spi_state_next == SPI_STATE_READ_DATA && (!fifo_empty || fifo_wr) && !read_this_cycle) begin
+            //&& (/*inflight_none*/ (fifo_empty && fifo_wr) || (!fifo_empty && wstb_pe))) begin
+            fifo_rd <= 'b1;
+            read_this_cycle <= 'b1;
+        end
+    end
+
+    reg fifo_rd_delayed;
+    always @(posedge clk_i) fifo_rd_delayed <= fifo_rd;
+
+    reg first_rd_complete;
+    always @(posedge clk_i) begin
+        if (spi_reset)
+            first_rd_complete <= 'b0;
+        else if (spi_state_next == SPI_STATE_READ_DATA && fifo_rd_delayed)
+            first_rd_complete <= 'b1;
+    end
+
+    always @(posedge clk_i) begin
+        if (spi_reset) begin
+            txndata_o <= 'b0;
+        end else if ((!first_rd_complete && fifo_rd_delayed) || wstb_pe) begin
+            txndata_o <= 'b0;
+            txndata_o[DATABITS-1:0] <= fifo_rd_data;
+        end
+    end
+
+    // in-flight counter for sequential reads
+    reg [3:0] inflight;
+    //wire inflight_max, inflight_none;
+    //assign inflight_max  = inflight == 4'hF;
+    //assign inflight_none = inflight == 4'h0;
+    wire [4:0] active_reqs;
+    wire       req_pipe_full;
+    assign active_reqs = fifo_filled + inflight + {4'b0, fifo_wr}; //5'(fifo_wr);
+    assign req_pipe_full = active_reqs[4];
+
     // Wishbone control
 
     always @(posedge clk_i) begin
-        wb_stb_o <= 1'b0;
+        wb_stb_o <= 'b0;
+        fifo_wr  <= 'b0;
         if (reset_i) begin
-            wb_cyc_o <= 'b0;
-            wb_stb_o <= 'b0;
-            wb_we_o  <= 'b0;
-            wb_adr_o <= 'b0;
-            wb_dat_o <= 'b0;
-            txndata_o <= 'b0;
+            wb_cyc_o     <= 'b0;
+            wb_we_o      <= 'b0;
+            wb_adr_o     <= 'b0;
+            wb_dat_o     <= 'b0;
+            fifo_wr_data <= 'b0;
+            inflight     <= 'b0;
+            //txndata_o <= 'b0;
         end else begin
-            //if (wb_req && wstb_pe && !wb_cyc_o) begin
-            if (wb_req && !wb_cyc_o) begin
-                wb_cyc_o <= 1'b1;
-                wb_stb_o <= 1'b1;
-                wb_adr_o <= wb_adr_d;
-                wb_we_o  <= wb_we;
-                wb_dat_o <= data_q;
-            end else if (wb_cyc_o) begin
-                if (wb_ack_i) begin
-                    wb_cyc_o  <= 1'b0;
-                    //wb_data_q <= wb_dat_i;
-                    txndata_o[DATABITS-1:0] <= wb_dat_i;
+            if (wb_cyc_o && wb_ack_i) begin
+                // drop cyc if we're not doing sequential reads
+                if (txnreset_sync || wb_we_o)
+                    wb_cyc_o     <= 'b0;
+                if (!wb_we_o) begin
+                    // only subtract if we're not adding later
+                    if (!wb_req || req_pipe_full || wb_stall_i || cmd_is_write)
+                        inflight <= inflight - 'b1;
+                    // assert !fifo_full
+                    fifo_wr      <= 'b1;
+                    fifo_wr_data <= wb_dat_i;
+                    //txndata_o[DATABITS-1:0] <= wb_dat_i;
                     // leftover bits set to zero
-                    txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
+                    //txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
                 end
+            end
+
+            if (wb_req && !wb_stall_i && !req_pipe_full) begin
+                wb_cyc_o <= 'b1;
+                wb_stb_o <= 'b1;
+                wb_adr_o <= { nor_cmd, addr_q };
+                wb_we_o  <= cmd_is_write;
+                wb_dat_o <= data_q;
+                // if read
+                if (!cmd_is_write) begin
+                    // only add if we're not subtracting earlier
+                    if (!wb_cyc_o || !wb_ack_i) inflight <= inflight + 'b1;
+                    // if sequential
+                    if (wb_cyc_o)
+                        wb_adr_o <= { nor_cmd, addr_counter };
+                end
+            //end else if (wb_cyc_o) begin
             end else if (txnreset_sync) begin
                 wb_cyc_o <= 'b0;
-                wb_stb_o <= 'b0;
                 wb_we_o  <= 'b0;
                 wb_adr_o <= 'b0;
                 wb_dat_o <= 'b0;
+                inflight <= 'b0;
             end
         end
     end

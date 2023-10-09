@@ -127,41 +127,44 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log
 
     await spi_frame_end(frame, sce, sck, sce_pol)
 
-async def read_txn(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+async def read_txn(sio_i, sio_o, sio_oe, sck, sce, start_addr: int, count: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
     await spi_write(sio_i, sck, cmd, SPI_MODE.SINGLE, 8, init_wait=1)
 
     # address phase
-    await spi_write(sio_i, sck, addr, SPI_MODE.QUAD, 8)
+    await spi_write(sio_i, sck, start_addr, SPI_MODE.QUAD, 8)
 
     # stall for stall cycles
     if stall > 0:
         await ClockCycles(sck, stall, rising=False) # ?
 
     # read data
-    word = 0x0000
-    # lsb for i in range(4):
-    for i in range(3, -1, -1):
-        await RisingEdge(sck)
-        assert sio_oe
-        log(f"[qspi.read_txn] data cycle {i} = {sio_o.value}h")
-        word |= (int(sio_o.value) & 0xF) << i*4
-    log(f"[qspi.read_txn] data word = {word}")
+    words = []
+    for wi in range(count):
+        word = 0x0000
+        # lsb for i in range(4):
+        for i in range(3, -1, -1):
+            await RisingEdge(sck)
+            assert sio_oe
+            log(f"[qspi.read_txn] word {wi} data cycle {i} = {sio_o.value}b")
+            word |= (int(sio_o.value) & 0xF) << i*4
+        log(f"[qspi.read_txn] word {wi} = {word:04X}")
+        words.append(word)
 
     await spi_frame_end(frame, sce, sck, sce_pol)
 
-    return word
+    return words
 
-async def read_fast(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float = 108, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0x0B, stall=20, sce_pol=sce_pol, log=log)
+async def read_fast(sio_i, sio_o, sio_oe, sck, sce, addr: int, count: int, freq: float = 108, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, count, freq, cmd=0x0B, stall=20, sce_pol=sce_pol, log=log)
 
-async def read_slow(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float = 50, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0x03, stall=0, sce_pol=sce_pol, log=log)
+async def read_slow(sio_i, sio_o, sio_oe, sck, sce, addr: int, count: int, freq: float = 50, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, count, freq, cmd=0x03, stall=0, sce_pol=sce_pol, log=log)
 
 async def loopback(sio_i, sio_o, sio_oe, sck, sce, addr: int, freq: float=100, sce_pol=0, log=lambda s: None) -> int:
-    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
+    return await read_txn(sio_i, sio_o, sio_oe, sck, sce, addr, 1, freq, cmd=0xFA, stall=0, sce_pol=sce_pol, log=log)
 
 async def enter_vt(sio_i, sck, sce, freq: float=60, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)

@@ -144,7 +144,7 @@ async def test_clock_rate(dut):
         #await ClockCycles(dut.clk_i, 1)
         #dut._log.info(f"Waiting on task")
         await Join(task)
-        await Timer(50, 'ns')
+        await Timer(100, 'ns')
         #dut._log.info(f"Done")
     await ClockCycles(dut.clk_i, 1)
 
@@ -261,13 +261,32 @@ async def test_sequential_reads(dut):
         (0x113, 0x3F3F)
     ]
 
-    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=2, log=dut._log.info))
+    # long stall
+    #task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=15, log=dut._log.info))
+    #ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    #for i,p in enumerate(pairs):
+    #    _, w = p
+    #    assert ret_val[i] == w
+    #await ClockCycles(dut.clk_i, 1)
+    #await Join(task)
 
+    # short stall
+    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=2, log=dut._log.info))
     ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
     for i,p in enumerate(pairs):
         _, w = p
         assert ret_val[i] == w
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
 
+    await Timer(100, 'ns')
+
+    # no stall
+    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=0, log=dut._log.info))
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    for i,p in enumerate(pairs):
+        _, w = p
+        assert ret_val[i] == w
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
 
@@ -301,7 +320,7 @@ async def test_fast_read_mc(dut):
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=20, toff=toff, sce_pol=1)
         assert ret_val[0] == 0x3456
         await Join(task)
-        await Timer(50, 'ns')
+        await Timer(100, 'ns')
 
     # restart dump
     dut.t_dumpb.value = 0

@@ -51,8 +51,8 @@ async def test_read(dut):
 
     # test some reads
     for i in range(4):
-        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 1024*64*i, freq=spi_freq)
-        assert ret_val == 0xFFFF
+        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 1024*64*i, 1, freq=spi_freq)
+        assert ret_val[0] == 0xFFFF
         await ClockCycles(dut.clk_i, 1)
 
     nor_task.kill()
@@ -92,8 +92,8 @@ async def test_program(dut):
     assert model.mem.mem[pa] == pd
 
     # now read
-    w = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, freq=spi_freq, log=dut._log.info)
-    assert w == pd
+    w = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, 1, freq=spi_freq, log=dut._log.info)
+    assert w[0] == pd
 
     nor_task.kill()
 
@@ -186,15 +186,15 @@ async def test_write_through(dut):
     await Timer(100, 'ns')
 
     # Now we can read CFI data. First three words are 0x0051 0x0052 0x0059
-    Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, freq=spi_freq, log=dut._log.info)
+    Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, freq=spi_freq, log=dut._log.info)
+    R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, freq=spi_freq, log=dut._log.info)
+    Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    assert Q == 0x0051
-    assert R == 0x0052
-    assert Y == 0x0059
+    assert Q[0] == 0x0051
+    assert R[0] == 0x0052
+    assert Y[0] == 0x0059
 
     # exit CFI
     pa = 0
@@ -203,15 +203,15 @@ async def test_write_through(dut):
     await Timer(100, 'ns')
 
     # read array data
-    Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, freq=spi_freq, log=dut._log.info)
+    Q = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x10, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, freq=spi_freq, log=dut._log.info)
+    R = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x11, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, freq=spi_freq, log=dut._log.info)
+    Y = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x12, 1, freq=spi_freq, log=dut._log.info)
     await Timer(100, 'ns')
-    assert Q == 0xFFFF
-    assert R == 0xFFFF
-    assert Y == 0xFFFF
+    assert Q[0] == 0xFFFF
+    assert R[0] == 0xFFFF
+    assert Y[0] == 0xFFFF
 
     nor_task.kill()
 
@@ -250,5 +250,38 @@ async def test_vt_enter(dut):
     await qspi.enter_vt(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
     await ClockCycles(dut.clk_i, 5)
     assert dut.nor_we_o.value == 0
+
+    await ClockCycles(dut.clk_i, 10)
+
+@cocotb.test()
+async def test_multi_read(dut):
+    """Enter VT"""
+
+    await setup(dut)
+
+    nor_bus = {
+            'ce': dut.nor_ce_o,
+            'oe': dut.nor_oe_o,
+            'we': dut.nor_we_o,
+           'doe': dut.nor_data_oe,
+          'addr': dut.nor_addr_o,
+        'data_o': dut.nor_data_o,
+        'data_i': dut.nor_data_i,
+            'ry': dut.nor_ry_i
+    }
+
+    model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+    nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
+    await ClockCycles(dut.clk_i, 1)
+
+    # set test data
+    for i in range(20):
+        model.mem.program(0x200 + i, i)
+
+    # read
+    data = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x200, 20, freq=spi_freq, log=dut._log.info)
+
+    for i,w in enumerate(data):
+        assert w == i
 
     await ClockCycles(dut.clk_i, 10)

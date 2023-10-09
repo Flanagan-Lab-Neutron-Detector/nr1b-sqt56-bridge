@@ -110,10 +110,14 @@ class nor_flash_behavioral_x16:
         self.log = log
 
     def read(self, addr: int) -> int:
+        data = 0
         if self.overlay == self.mem_overlay.OVERLAY_CFI:
-            return self.cfi[addr] if addr < len(self.cfi) else 0
+            data = self.cfi[addr] if addr < len(self.cfi) else 0
+            self.log(f"[flash] read CFI @{addr:07X}h = {data:04X}")
         else:
-            return self.mem.read(addr)
+            data = self.mem.read(addr)
+            self.log(f"[flash] read @{addr:07X}h = {data:04X}")
+        return data
 
     def _handle_cmd_cycle(self, addr: int, data: int) -> int:
         self.log(f"[flash] cmd cycle state={self.state} addr={addr:X} data={data:04X}")
@@ -124,8 +128,10 @@ class nor_flash_behavioral_x16:
             if data == 0xF0: # reset
                 self.busy = False
                 self.overlay = self.mem_overlay.OVERLAY_ARRAY
+                self.log("[flash] received cmd reset")
             elif addr == 0x55 and data == 0x98: # CFI enter
                 self.overlay = self.mem_overlay.OVERLAY_CFI
+                self.log("[flash] received cmd cfi enter")
             elif addr == 0x555 and data == 0xAA: # unlock cycle 1-1
                 self.state = self.ctrl_state.CMD_CYCLE_2
             else: # invalid, treat like reset
@@ -145,10 +151,12 @@ class nor_flash_behavioral_x16:
             else: # invalid, treat like reset
                 self.state = self.ctrl_state.CMD_CYCLE_1
         elif self.state == self.ctrl_state.CMD_PROGRAM:
+            self.log(f"[flash] received cmd program {addr:X} = {data:04X}")
             # addr is program address and data is program data
             self.mem.program(addr, data)
             wait_time = self.tbusy_program
         elif self.state == self.ctrl_state.CMD_WRITE_BUF:
+            self.log("[flash] received cmd write buf")
             pass
         elif self.state == self.ctrl_state.CMD_ERASE_1:
             if addr == 0x555 and data == 0xAA:
@@ -162,10 +170,12 @@ class nor_flash_behavioral_x16:
                 self.state = self.ctrl_state.CMD_CYCLE_1
         elif self.state == self.ctrl_state.CMD_ERASE_SEL:
             if addr == 0x555 and data == 0x10:
+                self.log("[flash] received cmd erase chip")
                 # chip erase
                 self.mem.erase_all
                 wait_time = self.tbusy_erase_chip
             elif data == 0x30:
+                self.log(f"[flash] received cmd erase sector {addr:X}")
                 # sector erase
                 self.mem.erase(addr)
                 wait_time = self.tbusy_erase_sector
@@ -186,13 +196,14 @@ class nor_flash_behavioral_x16:
         while True:
             #bus['ry'].value = 0 if self.busy else 1
             if self.if_state == self.bus_state.IDLE:
-                #self.log("[flash] IDLE wait for request")
+                self.log("[flash] IDLE wait for request")
                 #await First(FallingEdge(bus['we']), FallingEdge(bus['oe']))
                 await FallingEdge(bus['ce'])
                 self.log(f"[flash] IDLE request ce={bus['ce'].value} oe={bus['oe'].value} we={bus['we'].value}")
                 if not bus['ce'].value: # we only care if CE is low TODO: fix this
                     assert bus['we'].value or bus['oe'].value # at most one should be asserted
                     if (not bus['we'].value) and (not self.busy):
+                        self.log(f"[flash] IDLE request write not busy")
                         await Timer(35, 'ns') # tWP
                         # now we sample the address and data
                         addr = int(bus['addr'].value)
@@ -221,7 +232,7 @@ class nor_flash_behavioral_x16:
                         if self.busy:
                             raise Warning("status data is not yet implemented, reading memory")
                         bus['data_i'].value = self.read(int(bus['addr'].value))
-                        self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
+                        #self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
                         #self.log(f"[flash] IDLE request read wait for end")
                         last_addr = int(bus['addr'].value)
                         await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
@@ -232,16 +243,18 @@ class nor_flash_behavioral_x16:
                             else:
                                 await Timer(130, 'ns') # tACC, worst case
                             bus['data_i'].value = self.read(int(bus['addr'].value))
-                            self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
+                            #self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
                             last_addr = int(bus['addr'].value)
-                            await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
+                            if not bus['ce'].value or not bus['oe'].value:
+                                await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                             await Timer(1, 'ns') # just to be sure
                         self.if_state = self.bus_state.RECOVERY
                     else:
                         self.log("[flash] request while busy")
             elif self.if_state == self.bus_state.RECOVERY:
-                #self.log(f"[flash] RECOVERY")
+                self.log(f"[flash] RECOVERY")
                 await Timer(35, 'ns') # tCEH
                 self.if_state = self.bus_state.IDLE
             else:
+                self.log(f"[flash] if_state = {self.if_state}")
                 self.if_state = self.bus_state.IDLE

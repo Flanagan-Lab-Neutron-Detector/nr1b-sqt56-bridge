@@ -162,7 +162,8 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
     for adr,data in adr_data:
         log(f"[multi_expect] expect a={adr:x}")
 
-        bus['stall'].value = 0
+        #bus['stall'].value = 0
+        bus['stall'].setimmediatevalue(0)
 
         if not bus['stb'].value:
             trigger = RisingEdge(bus['stb'])
@@ -171,28 +172,29 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
             else:
                 await trigger
 
-        if stall_cycles > 0:
-            bus['stall'].value = 1
-            #stall_cycles -= 1
+        #bus['stall'].value = 1
+        bus['stall'].setimmediatevalue(1)
 
-        await ClockCycles(bus['clk'], 1)
+        #await ClockCycles(bus['clk'], 1)
 
-        #await FallingEdge(bus['clk'])
+        await FallingEdge(bus['clk'])
         log(f"[multi_expect] got a={int(bus['adr']):x}, send d={int(data):x}")
         assert bus['cyc'].value == 1
         assert bus['we'].value == 0
         assert bus['adr'].value == adr
+        await RisingEdge(bus['clk'])
 
         if stall_cycles > 0:
             bus['stall'].value = 1
-            await ClockCycles(bus['clk'], stall_cycles - 1)
+            await ClockCycles(bus['clk'], stall_cycles)
+
+        bus['stall'].value = 0
         bus['dat_o'].value = data
         bus['ack'].value = 1
         await ClockCycles(bus['clk'], 1)
         bus['ack'].value = 0
-        bus['stall'].value = 0
 
-        await ClockCycles(bus['clk'], 1)
+        #await ClockCycles(bus['clk'], 1)
 
 async def slave_write_expect(bus: dict, adr, data, timeout=0, stall_cycles=0, log=lambda s: None):
     """Expects a write"""
