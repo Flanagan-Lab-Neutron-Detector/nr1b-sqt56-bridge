@@ -135,9 +135,9 @@ async def slave_read_expect(bus: dict, adr, data=0, timeout=0, stall_cycles=0, l
         else:
             await trigger
     
-    #if stall_cycles > 0:
-        #bus['stall'].value = 1
-        #stall_cycles -= 1
+    if stall_cycles > 0:
+        bus['stall'].value = 1
+        stall_cycles -= 1
 
     await ClockCycles(bus['clk'], 1)
 
@@ -171,6 +171,10 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
             else:
                 await trigger
 
+        if stall_cycles > 0:
+            bus['stall'].value = 1
+            #stall_cycles -= 1
+
         await ClockCycles(bus['clk'], 1)
 
         #await FallingEdge(bus['clk'])
@@ -181,7 +185,7 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
 
         if stall_cycles > 0:
             bus['stall'].value = 1
-            await ClockCycles(bus['clk'], stall_cycles)
+            await ClockCycles(bus['clk'], stall_cycles - 1)
         bus['dat_o'].value = data
         bus['ack'].value = 1
         await ClockCycles(bus['clk'], 1)
