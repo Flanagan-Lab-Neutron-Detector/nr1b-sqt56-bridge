@@ -127,6 +127,14 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log
 
     await spi_frame_end(frame, sce, sck, sce_pol)
 
+async def erase_chip(sio_i, sck, sce, freq: float=108, sce_pol=0, log=lambda s: None) -> None:
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol)
+
+    # command phase
+    await spi_write(sio_i, sck, 0x60, SPI_MODE.SINGLE, 8)
+
+    await spi_frame_end(frame, sce, sck, sce_pol)
+
 async def read_txn(sio_i, sio_o, sio_oe, sck, sce, start_addr: int, count: int, freq: float, cmd: int, stall: int, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 

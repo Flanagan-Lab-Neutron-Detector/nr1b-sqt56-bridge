@@ -172,7 +172,7 @@ class nor_flash_behavioral_x16:
             if addr == 0x555 and data == 0x10:
                 self.log("[flash] received cmd erase chip")
                 # chip erase
-                self.mem.erase_all
+                self.mem.erase_all()
                 wait_time = self.tbusy_erase_chip
             elif data == 0x30:
                 self.log(f"[flash] received cmd erase sector {addr:X}")

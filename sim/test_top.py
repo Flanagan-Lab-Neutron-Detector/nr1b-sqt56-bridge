@@ -98,7 +98,7 @@ async def test_program(dut):
     nor_task.kill()
 
 @cocotb.test(skip=False)
-async def test_erase(dut):
+async def test_erase_sector(dut):
     """Erase one sector"""
 
     await setup(dut)
@@ -155,6 +155,78 @@ async def test_erase(dut):
     # now read
     for i in range(32):
         assert model.mem.read(sector_address + i) == 0xFFFF
+
+    nor_task.kill()
+
+@cocotb.test(skip=False)
+async def test_erase_chip(dut):
+    """Erase one sector"""
+
+    await setup(dut)
+
+    wb_bus = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.wb_cyc_i,
+          'stb': dut.wb_stb_i,
+           'we': dut.wb_we_i,
+          'adr': dut.wb_adr_i,
+        'dat_i': dut.wb_dat_i,
+        'stall': dut.wb_stall_o,
+          'ack': dut.wb_ack_o,
+        'dat_o': dut.wb_dat_o
+    }
+
+    nor_bus = {
+            'ce': dut.nor_ce_o,
+            'oe': dut.nor_oe_o,
+            'we': dut.nor_we_o,
+           'doe': dut.nor_data_oe,
+          'addr': dut.nor_addr_o,
+        'data_o': dut.nor_data_o,
+        'data_i': dut.nor_data_i,
+            'ry': dut.nor_ry_i
+    }
+
+    model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+    # Chip erase busy time is typically up to 34min, so we set it to shorter here
+    model.tbusy_erase_chip = 1000 # 1 us
+
+    # start nor state machin
+    nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
+    await ClockCycles(dut.clk_i, 1)
+
+    # pre program sector 7
+    sa1 = 1024*64 * 7
+    for i in range(32):
+        model.mem.program(sa1 + i, i)
+    data_str = ' '.join([f"{x:04X}" for x in model.mem.mem[sa1:sa1+i]])
+    dut._log.info(f"{sa1:X}[0:32] = {{ {data_str} }}")
+
+    # pre program sector 30
+    sa2 = 1024*64 * 30
+    for i in range(32):
+        model.mem.program(sa2 + i, i)
+    data_str = ' '.join([f"{x:04X}" for x in model.mem.mem[sa2:sa2+i]])
+    dut._log.info(f"{sa2:X}[0:32] = {{ {data_str} }}")
+
+    # send erase
+    await qspi.erase_chip(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    await ClockCycles(dut.clk_i, 1)
+
+    # wait for ready
+    await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
+    await ClockCycles(dut.clk_i, 1)
+
+    #dut._log.info("Erase")
+    #data_str = ' '.join([f"{x:04X}" for x in model.mem.mem[sector_address:sector_address+i]])
+    #dut._log.info(f"{sector_address:X}[0:32] = {{ {data_str} }}")
+
+    # now read
+    for i in range(32):
+        assert model.mem.read(sa1 + i) == 0xFFFF
+    for i in range(32):
+        assert model.mem.read(sa2 + i) == 0xFFFF
 
     nor_task.kill()
 
@@ -276,12 +348,12 @@ async def test_multi_read(dut):
 
     # set test data
     for i in range(20):
-        model.mem.program(0x200 + i, i)
+        model.mem.program(0x1FEC + i, ((i+17) << 8) + (i+17))
 
     # read
-    data = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x200, 20, freq=spi_freq, log=dut._log.info)
+    data = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x1FEC, 20, freq=spi_freq, log=dut._log.info)
 
     for i,w in enumerate(data):
-        assert w == i
+        assert w == ((i+17) << 8) + (i+17)
 
     await ClockCycles(dut.clk_i, 10)
