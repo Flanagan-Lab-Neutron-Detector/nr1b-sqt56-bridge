@@ -120,7 +120,10 @@ module qspi_ctrl_fsm #(
     // QSPI state changes
     always @(*) begin
         case (spi_state)
-            SPI_STATE_CMD:               spi_state_next = SPI_STATE_ADDR;
+            SPI_STATE_CMD: case(cmd_q)
+                `SPI_COMMAND_BULK_ERASE: spi_state_next = SPI_STATE_CMD;
+                default:                 spi_state_next = SPI_STATE_ADDR;
+            endcase
             SPI_STATE_ADDR: case (cmd_q)
                 `SPI_COMMAND_READ:       spi_state_next = SPI_STATE_READ_DATA;
                 `SPI_COMMAND_FAST_READ:  spi_state_next = SPI_STATE_FAST_READ_STALL;
