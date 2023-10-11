@@ -81,7 +81,8 @@ $(OUT_SYN_JSON): $(V_SRC) $(BUILDDIR)
 	yosys -q -e '' -c synth_gl.tcl
 
 $(OUT_RPT): $(OUT_ASC) $(BUILDDIR)
-	icetime -d $(DEVICE) -m -c $(FREQ) -r $(OUT_RPT) $(OUT_ASC)
+	icetime -d $(DEVICE) -m -r $(OUT_RPT) $(OUT_ASC)
+#icetime -d $(DEVICE) -m -c $(FREQ) -r $(OUT_RPT) $(OUT_ASC)
 
 $(OUT_SYN_V): $(OUT_SYN_JSON)
 	yosys -q -p 'read_json $(OUT_SYN_JSON); write_verilog $(OUT_SYN_V)'
