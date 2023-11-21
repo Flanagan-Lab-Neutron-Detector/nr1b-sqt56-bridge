@@ -45,7 +45,7 @@ module top_hx8k (
     wire       int_reset_n;
     assign int_reset_n = locked;
     // TODO: global clock input
-	pll_core pll (.clock_in(CLK), .clock_out(sysclk), .locked(locked));
+	pll pll (.clock_in(CLK), .clock_out(sysclk), .locked(locked));
     assign TP10 = 'b0; //sysclk;
     assign TP11 = locked;
 
