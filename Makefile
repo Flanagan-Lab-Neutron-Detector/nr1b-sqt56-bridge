@@ -55,7 +55,7 @@ SEED ?= 1779
 NEXTPNR_SEED ?= --seed $(SEED)
 
 .PHONY: all clean prog postsynth
-all: $(OUT_RPT) $(OUT_BIN) $(OUT_SYN_V)
+all: $(OUT_BIN) $(OUT_SYN_V)
 
 clean:
 	-rm -r $(BUILDDIR)
@@ -68,7 +68,7 @@ postsynth: $(OUT_SYN_V)
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
-$(OUT_BIN): $(OUT_ASC) $(BUILDDIR)
+$(OUT_BIN): $(OUT_RPT)
 	icepack $(OUT_ASC) $(OUT_BIN)
 
 $(OUT_ASC): $(PIN_DEF) $(OUT_JSON) $(BUILDDIR)
