@@ -21,7 +21,8 @@ async def setup(dut):
     dut.wb_dat_o.value = 0
 
     #T = 21.5 # 46.5 MHz
-    T = 15.15 # ~66 MHz
+    #T = 15.15 # ~66 MHz
+    T = 13.33 # ~75 MHz
     #T = 11.11 # ~90 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 

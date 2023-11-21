@@ -45,7 +45,9 @@ async def wb_read_double(dut, addr1: int, addr2: int, after_cycles=1, indata1=No
 async def setup(dut):
     """Prepare DUT for test"""
 
-    cocotb.start_soon(Clock(dut.clk_i, 15.15, units="ns").start())
+    #T = 15.15 # ~66 MHz
+    T = 13.33 # ~75 MHz
+    cocotb.start_soon(Clock(dut.clk_i, 13.33, units="ns").start())
 
     dut.wb_cyc_i.value = 0
     dut.wb_stb_i.value = 0
