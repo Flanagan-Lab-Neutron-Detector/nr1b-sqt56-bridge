@@ -27,7 +27,7 @@ export SYN_TOP # expose to synth_gl.tcl
 PIN_DEF ?= $(SRCDIR)/pins.pcf
 DEVICE ?= hx8k
 PACKAGE ?= cb132
-FREQ ?= 66
+FREQ ?= 75
 
 # yosys
 V_DEFS ?= -DSYNTH_ICE40
