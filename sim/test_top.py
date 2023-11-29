@@ -348,14 +348,14 @@ async def test_multi_read(dut):
     await ClockCycles(dut.clk_i, 1)
 
     # set test data
-    for i in range(50):
-        model.mem.program(0x1FEC + i, ((i+17) << 8) + (i+17))
+    for i in range(100):
+        model.mem.program(0x1FEC + i, ((i+17 % 256) << 8) + (i+17 % 256))
 
     # read
-    data = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x1FEC, 50, freq=spi_freq, log=dut._log.info)
+    data = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x1FEC, 100, freq=spi_freq, log=dut._log.info)
 
     for i,w in enumerate(data):
-        exp = ((i+17) << 8) + (i+17)
+        exp = ((i+17 % 256) << 8) + (i+17 % 256)
         assert w == exp, f"Word {i} = {w}, expected {exp}"
 
     await ClockCycles(dut.clk_i, 10)
