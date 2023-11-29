@@ -152,8 +152,8 @@ module nor_bus_driver #(
                      NOR_TXN_END = 3'b100;
 
     localparam [COUNTERBITS-1:0] WRITE_WAIT_COUNT  = 5,
-                                 READ_WAIT_COUNT   = 14,
-                                 READPG_WAIT_COUNT = 4,
+                                 READ_WAIT_COUNT   = 15,
+                                 READPG_WAIT_COUNT = 6,
                                  END_WAIT_COUNT    = 0;
 
     // wait counter
