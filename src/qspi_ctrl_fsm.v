@@ -266,7 +266,7 @@ module qspi_ctrl_fsm #(
     end
 
     // in-flight counter for sequential reads
-    reg [3:0] inflight;
+    reg [4:0] inflight;
     //wire inflight_max, inflight_none;
     //assign inflight_max  = inflight == 4'hF;
     //assign inflight_none = inflight == 4'h0;
