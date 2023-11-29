@@ -227,7 +227,7 @@ class nor_flash_behavioral_x16:
                         self.if_state = self.bus_state.RECOVERY
                     elif not bus['oe'].value:
                         self.log(f"[flash] IDLE request read {int(bus['addr'].value):07X}h")
-                        await First(Timer(130, 'ns'), RisingEdge(bus['ce']), RisingEdge(bus['oe'])) # tACC worst case, or deselect
+                        await First(Timer(180, 'ns'), RisingEdge(bus['ce']), RisingEdge(bus['oe'])) # tACC worst case, or deselect
                         if not bus['ce'].value and not bus['oe'].value: # timer expired
                             # TODO: status data
                             if self.busy:
@@ -242,7 +242,7 @@ class nor_flash_behavioral_x16:
                                 if (bus['addr'].value >> 3) == (last_addr >> 3):
                                     await Timer(25, 'ns') # tPACC
                                 else:
-                                    await Timer(130, 'ns') # tACC, worst case
+                                    await Timer(180, 'ns') # tACC, worst case
                                 bus['data_i'].value = self.read(int(bus['addr'].value))
                                 #self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
                                 last_addr = int(bus['addr'].value)
