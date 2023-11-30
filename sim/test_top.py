@@ -347,7 +347,7 @@ async def test_multi_read(dut):
     nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
     await ClockCycles(dut.clk_i, 1)
 
-    base = 128 * 65536 + 0x0ABC
+    base = 640 * 65536 - 20
 
     # set test data
     for i in range(100):
