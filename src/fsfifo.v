@@ -72,7 +72,10 @@ module fsfifo #(
 `ifdef FORMAL
     reg f_past_valid = 0;
     always @(posedge clk_i) f_past_valid = 1;
+
+    `ifdef FORMAL_FSFIFO_TOP
     initial assume(reset_i);
+    `endif // FORMAL_FSFIFO_TOP
 
     always @(*) assert(empty_o == (filled_o == 'b0));
     always @(*) assert(full_o == (filled_o == `MAX_PATTERN));
