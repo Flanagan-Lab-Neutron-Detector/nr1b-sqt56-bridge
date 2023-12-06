@@ -11,8 +11,8 @@ module tb_top (
     input rst_i, clk_i,
 
     // QSPI interface
-    input               [7:0] pad_spi_io_i,
-    output              [7:0] pad_spi_io_o,
+    input               [3:0] pad_spi_io_i,
+    output              [3:0] pad_spi_io_o,
     output                    pad_spi_io_oe,
     input                     pad_spi_sck_i,
     input                     pad_spi_sce_i,

@@ -115,7 +115,7 @@ module top_hx8k (
 
     // QSPI pins
 
-    wire [7:0] qspi_io_i, qspi_io_o;
+    wire [3:0] qspi_io_i, qspi_io_o;
     wire qspi_io_oe;
     /*
     assign qspi_io_i = { QSPI_IO0, QSPI_IO1, QSPI_IO2, QSPI_IO3 };
@@ -170,7 +170,7 @@ module top_hx8k (
         .D_IN_0(qspi_io_i[3])
     );
 
-    assign qspi_io_i[7:4] = 4'h0; // octal is not supported
+    //assign qspi_io_i[7:4] = 4'h0; // octal is not supported
 
     // NOR DQ
 

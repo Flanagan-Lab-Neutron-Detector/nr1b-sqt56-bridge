@@ -16,8 +16,8 @@ module top #(
     input reset_i, clk_i,
 
     // QSPI interface
-    input               [7:0] pad_spi_io_i,
-    output              [7:0] pad_spi_io_o,
+    input               [3:0] pad_spi_io_i,
+    output              [3:0] pad_spi_io_o,
     output                    pad_spi_io_oe,
     input                     pad_spi_sck_i,
     input                     pad_spi_sce_i,
@@ -43,8 +43,8 @@ module top #(
 );
 
     // SPI IO <-> SPI PHY
-    wire                [7:0] spi_io_i;
-    wire                [7:0] spi_io_o;
+    wire                [3:0] spi_io_i;
+    wire                [3:0] spi_io_o;
     wire                      spi_io_oe;
     wire                      spi_sck;
     wire                      spi_sce;
@@ -62,7 +62,6 @@ module top #(
     wire [DATABITS-1:0] wb_nor_dat_o;
 
     reg         txndir, txndone;
-    reg   [1:0] txnmode;
     reg   [7:0] txnbc;
     wire [31:0] txndata_mosi;
     reg  [31:0] txndata_miso;
@@ -98,7 +97,7 @@ module top #(
         .CYCLE_COUNT_BITS(8)
     ) xspi_slave (
         .sck_i(spi_sck), .sce_i(spi_sce), .sio_oe(spi_io_oe), .sio_i(spi_io_i), .sio_o(spi_io_o),
-        .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndata_i(txndata_mosi),
+        .txnbc_i(txnbc), .txndir_i(txndir), .txndata_i(txndata_mosi),
         .txndata_o(txndata_miso), .txndone_o(txndone)
     );
 
@@ -110,7 +109,7 @@ module top #(
         // general
         .reset_i(reset_i), .clk_i(clk_i),
         // spi slave
-        .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
+        .txnbc_o(txnbc), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
         // control
         .vt_mode(vt_mode), .d_wstb(dbg_txndone),

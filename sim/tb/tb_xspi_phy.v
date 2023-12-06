@@ -18,8 +18,8 @@ module tb_xspi_phy #(
     input                     sck_i, // synchronize to local clock
     input                     sce_i, // synchronize to local clock
     //inout               [3:0] sio,
-    input               [7:0] sio_i, // synchronize to local clock
-    output              [7:0] sio_o, // synchronized to local clock
+    input               [3:0] sio_i, // synchronize to local clock
+    output              [3:0] sio_o, // synchronized to local clock
     output                    sio_oe, // 0 = input, 1 = output
 
     // wishbone
@@ -61,7 +61,6 @@ module tb_xspi_phy #(
     end
 
     reg  [7:0] txnbc;
-    reg  [1:0] txnmode;
     reg        txndir, txndone;
     reg [31:0] txndata_mosi;
     reg [31:0] txndata_miso;
@@ -73,7 +72,7 @@ module tb_xspi_phy #(
         .CYCLE_COUNT_BITS(8)
     ) xspi_phy_slave (
         .sck_i(sck_i), .sce_i(spi_ce_nrst), .sio_i(sio_i), .sio_o(sio_o), .sio_oe(sio_oe),
-        .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndone_o(txndone),
+        .txnbc_i(txnbc), .txndir_i(txndir), .txndone_o(txndone),
         .txndata_i(txndata_mosi), .txndata_o(txndata_miso)
     );
 
@@ -82,7 +81,7 @@ module tb_xspi_phy #(
         // general
         .reset_i(rst_i), .clk_i(clk_i),
         // spi slave
-        .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
+        .txnbc_o(txnbc), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!sce_i),
         // wb
         .wb_cyc_o(wb_cyc_o), .wb_stb_o(wb_stb_o), .wb_we_o(wb_we_o), .wb_err_i(wb_err_i),
