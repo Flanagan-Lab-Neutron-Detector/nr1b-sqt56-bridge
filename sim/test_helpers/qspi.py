@@ -57,8 +57,8 @@ async def spi_frame_begin(freq, sce, sck, sce_pol, toff=0):
 
 async def spi_frame_end(frame, sce, sck, sce_pol):
     sck_task, sck_T = frame
-    await Timer(sck_T, 'ns')
     sck_task.kill()
+    await Timer(sck_T/2, 'ns')
     sce.value = not sce_pol
     sck.value = 0
     await Timer(1, 'ns')
