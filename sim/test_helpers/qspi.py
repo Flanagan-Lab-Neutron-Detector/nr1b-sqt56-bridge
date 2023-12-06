@@ -67,7 +67,7 @@ async def prog_word(sio_i, sck, sce, addr: int, data: int, freq: float=108, sce_
     frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send prog word command
-    await spi_write(sio_i, sck, 0xF2, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0xF2, SPI_MODE.QUAD, 2)
     # address
     await spi_write(sio_i, sck, addr, SPI_MODE.QUAD, 8)
     # data
@@ -81,7 +81,7 @@ async def write_through(sio_i, sck, sce, addr: int, data: int, freq: float=108, 
     frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send write through command
-    await spi_write(sio_i, sck, 0xF8, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0xF8, SPI_MODE.QUAD, 2)
     # address
     await spi_write(sio_i, sck, addr, SPI_MODE.QUAD, 8)
     # data
@@ -95,7 +95,7 @@ async def page_prog(sio_i, sck, sce, addr: int, words: List[int], freq: float = 
     frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # send page prog command
-    await spi_write(sio_i, sck, 0x02, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0x02, SPI_MODE.QUAD, 2)
 
     # send sector address
     await spi_write(sio_i, sck, addr, SPI_MODE.QUAD, 8)
@@ -113,7 +113,7 @@ async def erase_sect(sio_i, sck, sce, addr: int, freq: float=108, sce_pol=0, log
     frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # command phase
-    await spi_write(sio_i, sck, 0xD8, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0xD8, SPI_MODE.QUAD, 2)
     #cmd = 0xD8
     #for i in range(8):
     #    sio_i.value = (cmd >> i) & 0x1
@@ -131,7 +131,7 @@ async def erase_chip(sio_i, sck, sce, freq: float=108, sce_pol=0, log=lambda s: 
     frame = await spi_frame_begin(freq, sce, sck, sce_pol)
 
     # command phase
-    await spi_write(sio_i, sck, 0x60, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0x60, SPI_MODE.QUAD, 2)
 
     await spi_frame_end(frame, sce, sck, sce_pol)
 
@@ -139,7 +139,7 @@ async def read_txn(sio_i, sio_o, sio_oe, sck, sce, start_addr: int, count: int, 
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
-    await spi_write(sio_i, sck, cmd, SPI_MODE.SINGLE, 8, init_wait=1)
+    await spi_write(sio_i, sck, cmd, SPI_MODE.QUAD, 2, init_wait=1)
 
     # address phase
     await spi_write(sio_i, sck, start_addr, SPI_MODE.QUAD, 8)
@@ -178,7 +178,7 @@ async def enter_vt(sio_i, sck, sce, freq: float=60, toff: float=0, sce_pol=0, lo
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
-    await spi_write(sio_i, sck, 0xFB, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0xFB, SPI_MODE.QUAD, 2)
 
     await spi_frame_end(frame, sce, sck, sce_pol)
     log("[qspi.enter_vt] done")
@@ -187,7 +187,7 @@ async def reset(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) 
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 
     # command phase
-    await spi_write(sio_i, sck, 0xF0, SPI_MODE.SINGLE, 8)
+    await spi_write(sio_i, sck, 0xF0, SPI_MODE.QUAD, 2)
 
     await spi_frame_end(frame, sce, sck, sce_pol)
     log("[qspi.reset] done")

@@ -45,7 +45,7 @@ module qspi_ctrl_fsm #(
 
     // Currently all commands are 8-bit, 1-lane
     // All other phases are N-bit 4-lane (quad)
-    localparam CYCLE_COUNT_BITS     = 6;
+    localparam CYCLE_COUNT_BITS     = 8;
 
     // NOTE: Most masters only operate on bytes for address and data, so
     // round up to byte boundaries
@@ -93,16 +93,16 @@ module qspi_ctrl_fsm #(
     initial begin
         // pre-init to command
         for (i = 0; i < 8; i = i + 1) begin
-            txn_config_reg[i] = { 6'h08, 2'b00, 1'b0 }; // COMMAND: single-SPI, input, 8 bits
+            txn_config_reg[i] = { 8'h08, 2'b00, 1'b0 }; // COMMAND: quad-SPI, input, 8 bits
         end
-        txn_config_reg[0] = { 6'h08,             2'b00, 1'b0 }; // COMMAND:         single-SPI, input, 8 cycles
-        txn_config_reg[1] = { ADDRBITS_RND[5:0], 2'b10, 1'b0 }; // ADDR:              quad-SPI, input
-        txn_config_reg[2] = { 6'h14,             2'b00, 1'b0 }; // FAST READ STALL: single-SPI, input, 20 cycles
-        txn_config_reg[3] = { DATABITS_RND[5:0], 2'b10, 1'b1 }; // READ DATA:         quad-SPI, output
-        txn_config_reg[4] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // PROG WORD DATA:    quad-SPI, input
-        txn_config_reg[5] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // WRITE THRU DATA:   quad-SPI, input
-        txn_config_reg[6] = { 6'h08,             2'b00, 1'b0 }; // RFU 0            single-SPI, input, 8 cycles
-        txn_config_reg[7] = { DATABITS_RND[5:0], 2'b10, 1'b0 }; // PAGE PROG DATA:    quad-SPI, input
+        txn_config_reg[0] = { 8'h08,             2'b10, 1'b0 }; // COMMAND:           quad-SPI, input, 8 cycles
+        txn_config_reg[1] = { ADDRBITS_RND[7:0], 2'b10, 1'b0 }; // ADDR:              quad-SPI, input
+        txn_config_reg[2] = { 8'h50,             2'b10, 1'b0 }; // FAST READ STALL:   quad-SPI, input, 20 cycles
+        txn_config_reg[3] = { DATABITS_RND[7:0], 2'b10, 1'b1 }; // READ DATA:         quad-SPI, output
+        txn_config_reg[4] = { DATABITS_RND[7:0], 2'b10, 1'b0 }; // PROG WORD DATA:    quad-SPI, input
+        txn_config_reg[5] = { DATABITS_RND[7:0], 2'b10, 1'b0 }; // WRITE THRU DATA:   quad-SPI, input
+        txn_config_reg[6] = { 8'h08,             2'b10, 1'b0 }; // RFU 0              quad-SPI, input, 8 cycles
+        txn_config_reg[7] = { DATABITS_RND[7:0], 2'b10, 1'b0 }; // PAGE PROG DATA:    quad-SPI, input
     end
 
     // synchronize to txndone rising edge (word strobe)

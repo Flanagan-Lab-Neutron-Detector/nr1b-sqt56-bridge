@@ -60,7 +60,7 @@ module tb_xspi_phy #(
         if (!r_dumpb[1] &&  r_dumpb[0]) $dumpoff; // rising edge
     end
 
-    reg  [5:0] txnbc;
+    reg  [7:0] txnbc;
     reg  [1:0] txnmode;
     reg        txndir, txndone;
     reg [31:0] txndata_mosi;
@@ -70,7 +70,7 @@ module tb_xspi_phy #(
     assign spi_ce_nrst = sce_i && !rst_i;
 
     xspi_phy_slave #(
-        .CYCLE_COUNT_BITS(6)
+        .CYCLE_COUNT_BITS(8)
     ) xspi_phy_slave (
         .sck_i(sck_i), .sce_i(spi_ce_nrst), .sio_i(sio_i), .sio_o(sio_o), .sio_oe(sio_oe),
         .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndone_o(txndone),
