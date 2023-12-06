@@ -54,15 +54,18 @@ NEXTPNR_EXPERIMENTAL ?= --tmg-ripup #--opt-timing # 56.6 145.8
 SEED ?= 1779
 NEXTPNR_SEED ?= --seed $(SEED)
 
-.PHONY: all clean prog postsynth
+.PHONY: all
 all: $(OUT_BIN) $(OUT_SYN_V)
 
+.PHONY: clean
 clean:
 	-rm -r $(BUILDDIR)
 
+.PHONY: prog
 prog: $(OUT_BIN)
 	iceprog $(OUT_BIN)
 
+.PHONY: postsynth
 postsynth: $(OUT_SYN_V)
 
 $(BUILDDIR):
