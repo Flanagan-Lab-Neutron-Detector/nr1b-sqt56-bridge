@@ -335,8 +335,8 @@ async def test_fast_read_mc(dut):
 
     N = 100
     for i in range(100):
-        # clk period is 8ns, sck period is 16.67ns, so pick toff in [0, 8]ns
-        toff = 8.0 * random()
+        # clk period is 13.33ns, sck period is 16.67ns, so pick toff in [0, 13.33]ns
+        toff = 13.33 * random()
         task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x83, 1, freq=20, toff=toff, sce_pol=1)
         assert ret_val[0] == 0x3456
