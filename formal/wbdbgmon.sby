@@ -1,0 +1,20 @@
+[tasks]
+cover
+bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+depth 25
+append 1
+
+[engines]
+smtbmc
+
+[script]
+read -formal -DFORMAL_WBDGMON_TOP wbdbgmon.v fsfifo.v 
+prep -top wbdbgmon
+
+[files]
+../src/wbdbgmon.v
+../src/fsfifo.v
