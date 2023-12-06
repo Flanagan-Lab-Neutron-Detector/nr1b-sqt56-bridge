@@ -77,7 +77,7 @@ module top #(
     //assign dbg_txndone = txndone;
     assign dbg_txnbc   = 'b0; //txnbc;
     assign dbg_txnmosi = 'b0; //txndata_mosi;
-    assign dbg_txnmiso = 'b0; //txndata_miso;
+    assign dbg_txnmiso = txndata_miso;
     assign dbg_wb_ctrl_ack = 'b0; //wb_ctrl_ack;
     assign dbg_wb_nor_stb = 'b0; //wb_nor_stb;
     assign dbg_vt_mode = 'b0; //vt_mode;

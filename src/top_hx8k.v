@@ -383,7 +383,10 @@ module top_hx8k (
     } = 'b0; // nor_addr[19:16];
     assign {
         IOL_9P,  IOL_9N,  IOL_5P,  IOL_5N
-    } = nor_dq_i[3:0]; //qspi_io_i[3:0];
+    } = { nor_addr[1], nor_addr[0], nor_dq_i[1], nor_dq_i[0] };
+    // dbg_txnmiso[3:0];
+    // qspi_io_i[3:0];
+    // { nor_dq_i[7], nor_dq_i[2:0] }
     //assign IOB_74 = nor_dq_o_in[15];
     //assign IOB_91 = nor_dq_o_in[14];
 
