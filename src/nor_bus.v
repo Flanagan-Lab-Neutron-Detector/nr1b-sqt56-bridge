@@ -63,7 +63,8 @@ module nor_bus #(
     wire [47:0] req_data0 = req_data[47:0];
 
     // if this request is invalid, or we have finished this request
-    always @(*) req_load  = (!req_dv[0] && !(req_dv[1] && req_load_q)) || wb_ack_o;
+    //always @(*) req_load  = (!req_dv[0] && !(req_dv[1] && req_load_q)) || wb_ack_o;
+    always @(*) req_load  = !req_dv[0] || !(req_dv[1] || fifo_read_q);
     // if we need a new request and the fifo has data, load from fifo
     always @(*) fifo_read = req_load && !fifo_empty;
 
@@ -73,18 +74,40 @@ module nor_bus #(
 
     always @(posedge wb_clk_i) begin
         if (mod_reset) { req_data[95:48], req_data[47:0] } <= { 48'b0, 48'b0 };
-        else if (req_load_q) begin
+        else if (wb_ack_o) begin
+            //req_data[47:0] <= 'b0;
+            { req_data[95:48], req_data[47:0] } <= { 48'b0, req_data[95:48] };
+        end else if (req_load_q) begin
+            case (req_dv)
+                2'b00: { req_data[95:48], req_data[47:0] } <= { 48'b0,           fifo_data_out   };
+                2'b01: { req_data[95:48], req_data[47:0] } <= { fifo_data_out,   req_data[47:0]  };
+                2'b10: { req_data[95:48], req_data[47:0] } <= { fifo_data_out,   req_data[95:48] };
+                2'b11: { req_data[95:48], req_data[47:0] } <= { req_data[95:48], req_data[47:0]  };
+            endcase
+        end
+        /*else if (req_load_q) begin
             req_data[47:0] <= req_data[95:48];
             req_data[95:48] <= fifo_read_q ? fifo_data_out : 48'b0;
-        end
+        end*/
     end
 
     always @(posedge wb_clk_i) begin
         if (mod_reset) req_dv <= 2'b00;
-        else if (req_load_q) begin
+        else if (wb_ack_o) begin
+            //req_dv[0] <= 'b0;
+            req_dv <= 2'b01;
+        end else if (req_load_q) begin
+            case (req_dv)
+                2'b00: req_dv <= { 1'b0,        fifo_read_q };
+                2'b01: req_dv <= { fifo_read_q, 1'b1        };
+                2'b10: req_dv <= { fifo_read_q, 1'b1        };
+                2'b11: req_dv <= { 1'b1       , 1'b1        };
+            endcase
+        end
+        /*else if (req_load_q) begin
             req_dv[0] <= req_dv[1];
             req_dv[1] <= fifo_read_q;
-        end
+        end*/
     end
 
     assign wb_stall_o = fifo_full;
