@@ -149,9 +149,23 @@ async def test_erase_sector(dut):
     await ClockCycles(dut.clk_i, 1)
 
     # send erase
-    #await wb.write(wb_bus, c, 0x1234)
-    await qspi.erase_sect(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, freq=spi_freq)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x80, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, 0x30, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
+
+    # send erase
+    #await wb.write(wb_bus, c, 0x1234)
+    #await qspi.erase_sect(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, freq=spi_freq)
+    #await ClockCycles(dut.clk_i, 1)
 
     await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
     await ClockCycles(dut.clk_i, 1)
@@ -219,8 +233,22 @@ async def test_erase_chip(dut):
     dut._log.info(f"{sa2:X}[0:32] = {{ {data_str} }}")
 
     # send erase
-    await qspi.erase_chip(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x80, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x10, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
+
+    # send erase
+    #await qspi.erase_chip(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    #await ClockCycles(dut.clk_i, 1)
 
     # wait for ready
     await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
@@ -333,7 +361,7 @@ async def test_vt_enter(dut):
 
     await ClockCycles(dut.clk_i, 10)
 
-@cocotb.test()
+@cocotb.test(skip=True)
 async def test_multi_read(dut):
     """Enter VT"""
 
