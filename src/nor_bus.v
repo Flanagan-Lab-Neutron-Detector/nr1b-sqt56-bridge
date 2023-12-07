@@ -46,76 +46,20 @@ module nor_bus #(
 
     assign wb_err_o = 'b0;
 
-    wire fifo_full, fifo_empty, fifo_write;
-    reg  fifo_read;
-    wire [47:0] fifo_data_in;
-    reg  [47:0] fifo_data_out;
-
-    assign fifo_write = wb_cyc_i && wb_stb_i && !wb_stall_o;
-    assign fifo_data_in = { {(48-ADDRBITS-DATABITS-1){1'b0}}, wb_we_i, wb_dat_i, wb_adr_i };
-
-    fsfifo #(.WIDTH(48), .DEPTH(32)) request_fifo (
-        .clk_i(wb_clk_i), .reset_i(mod_reset),
-        .full_o(fifo_full), .empty_o(fifo_empty),
-        .wr_i(fifo_write), .wr_data_i(fifo_data_in),
-        .rd_i(fifo_read), .rd_data_o(fifo_data_out)
-    );
-
-    reg  [95:0] req_data;
-    reg   [1:0] req_dv;
-    reg         req_load;
-    wire [47:0] req_data1 = req_data[95:48];
-    wire [47:0] req_data0 = req_data[47:0];
-
-    // if this request is invalid, or we have finished this request
-    //always @(*) req_load  = (!req_dv[0] && !(req_dv[1] && req_load_q)) || wb_ack_o;
-    always @(*) req_load  = !req_dv[0] || !(req_dv[1] || fifo_read_q);
-    // if we need a new request and the fifo has data, load from fifo
-    always @(*) fifo_read = req_load && !fifo_empty;
-
-    reg req_load_q, fifo_read_q;
-    always @(posedge wb_clk_i) req_load_q  <= req_load;
-    always @(posedge wb_clk_i) fifo_read_q <= fifo_read;
+    reg         req_dv;
+    reg  [47:0] req_data0;
 
     always @(posedge wb_clk_i) begin
-        if (mod_reset) { req_data[95:48], req_data[47:0] } <= { 48'b0, 48'b0 };
-        else if (wb_ack_o) begin
-            //req_data[47:0] <= 'b0;
-            { req_data[95:48], req_data[47:0] } <= { 48'b0, req_data[95:48] };
-        end else if (req_load_q) begin
-            case (req_dv)
-                2'b00: { req_data[95:48], req_data[47:0] } <= { 48'b0,           fifo_data_out   };
-                2'b01: { req_data[95:48], req_data[47:0] } <= { fifo_data_out,   req_data[47:0]  };
-                2'b10: { req_data[95:48], req_data[47:0] } <= { fifo_data_out,   req_data[95:48] };
-                2'b11: { req_data[95:48], req_data[47:0] } <= { req_data[95:48], req_data[47:0]  };
-            endcase
+        if (mod_reset || wb_ack_o) begin
+            req_data0 <= 'b0;
+            req_dv    <= 'b0;
+        end else if (wb_cyc_i && wb_stb_i && !wb_stall_o) begin
+            req_data0 <= { {(48-ADDRBITS-DATABITS-1){1'b0}}, wb_we_i, wb_dat_i, wb_adr_i };
+            req_dv    <= 'b1;
         end
-        /*else if (req_load_q) begin
-            req_data[47:0] <= req_data[95:48];
-            req_data[95:48] <= fifo_read_q ? fifo_data_out : 48'b0;
-        end*/
     end
 
-    always @(posedge wb_clk_i) begin
-        if (mod_reset) req_dv <= 2'b00;
-        else if (wb_ack_o) begin
-            //req_dv[0] <= 'b0;
-            req_dv <= 2'b01;
-        end else if (req_load_q) begin
-            case (req_dv)
-                2'b00: req_dv <= { 1'b0,        fifo_read_q };
-                2'b01: req_dv <= { fifo_read_q, 1'b1        };
-                2'b10: req_dv <= { fifo_read_q, 1'b1        };
-                2'b11: req_dv <= { 1'b1       , 1'b1        };
-            endcase
-        end
-        /*else if (req_load_q) begin
-            req_dv[0] <= req_dv[1];
-            req_dv[1] <= fifo_read_q;
-        end*/
-    end
-
-    assign wb_stall_o = fifo_full;
+    assign wb_stall_o = nor_stall;
     wire nor_stall;
 
     nor_bus_driver #(.ADDRBITS(ADDRBITS), .DATABITS(DATABITS)) nor_bus_driver (
@@ -124,8 +68,7 @@ module nor_bus #(
         //.req_write_i(req_we), .ack_o(wb_ack_o), .data_o(wb_dat_o), .busy_o(nor_stall),
         .rst_i(mod_reset), .clk_i(wb_clk_i),
         .req_i(req_data0[(ADDRBITS+DATABITS+1)-1:0]),
-        .next_req_i(req_data1[(ADDRBITS+DATABITS+1)-1:0]),
-        .req_valid_i(req_dv[0]), .next_req_valid_i(req_dv[1]),
+        .req_valid_i(req_dv),
         .ack_o(wb_ack_o), .data_o(wb_dat_o), .busy_o(nor_stall),
         // nor
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i), .nor_data_o(nor_data_o),
@@ -143,8 +86,7 @@ module nor_bus_driver #(
     input                     rst_i,
     input                     clk_i,
     input      [(ADDRBITS+DATABITS+1)-1:0] req_i,
-    input      [(ADDRBITS+DATABITS+1)-1:0] next_req_i,
-    input                     req_valid_i, next_req_valid_i,
+    input                     req_valid_i,
     output reg                ack_o,
     output reg [DATABITS-1:0] data_o,
     output reg                busy_o,
@@ -164,11 +106,7 @@ module nor_bus_driver #(
     wire                req_we;
     wire [ADDRBITS-1:0] req_addr;
     wire [DATABITS-1:0] req_data;
-    wire                next_req_we;
-    wire [ADDRBITS-1:0] next_req_addr;
-    wire [DATABITS-1:0] next_req_data;
     assign { req_we, req_data, req_addr } = req_i;
-    assign { next_req_we, next_req_data, next_req_addr } = next_req_i;
 
     // local
     reg [2:0] state, next_state;
@@ -207,16 +145,11 @@ module nor_bus_driver #(
         endcase
     end
 
-    wire next_addr_same_page, next_read_same_page, next_read_valid;
-    assign next_addr_same_page = req_addr[ADDRBITS-1:3] == next_req_addr[ADDRBITS-1:3];
-    assign next_read_valid     = next_req_valid_i && !next_req_we;
-    assign next_read_same_page = next_addr_same_page && req_valid_i && next_req_valid_i && !req_we && !next_req_we;
-
     always @(*) case(state)
-        NOR_IDLE:    next_state = (req_valid_i)     ? (req_we              ? NOR_WRITE  : NOR_READ) : NOR_IDLE;
+        NOR_IDLE:    next_state = req_valid_i ? (req_we ? NOR_WRITE : NOR_READ) : NOR_IDLE;
         NOR_WRITE:   next_state = NOR_TXN_END;
-        NOR_READ:    next_state = (next_read_valid) ? (next_read_same_page ? NOR_READPG : NOR_READ) : NOR_TXN_END;
-        NOR_READPG:  next_state = (next_read_valid) ? (next_read_same_page ? NOR_READPG : NOR_READ) : NOR_TXN_END;
+        NOR_READ:    next_state = NOR_TXN_END;
+        NOR_READPG:  next_state = NOR_TXN_END;
         NOR_TXN_END: next_state = NOR_IDLE;
         default:     next_state = NOR_IDLE;
     endcase
@@ -267,11 +200,6 @@ module nor_bus_driver #(
                         if (counter_stb) begin
                             data_o <= nor_data_i;
                             ack_o <= 1'b1;
-                            if ((next_state == NOR_READ) ||
-                                (next_state == NOR_READPG)) begin
-                                nor_data_o <= next_req_data;
-                                nor_addr_o <= next_req_addr;
-                            end
                         end
                     end
                     NOR_TXN_END: begin

@@ -174,124 +174,42 @@ module qspi_ctrl_fsm #(
                 vt_mode <= 1'b0;
         end
 
-    // Address counter for sequential reads
-    reg [ADDRBITS-1:0] addr_counter;
-    always @(posedge clk_i)
-        if (spi_reset) addr_counter <= 'b0;
-        else if (wb_req && !wb_stall_i && !cmd_is_write && !wb_cyc_o && !req_pipe_full)
-                       addr_counter <= addr_q + 'b1;
-        //else if (wb_cyc_o && !cmd_is_write && wb_ack_i)
-        else if (wb_req && !wb_stall_i && !cmd_is_write && !req_pipe_full)
-                       addr_counter <= addr_counter + 'b1;
-
-    // fifo for sequential read data
-    wire                fifo_full, fifo_empty;
-    reg                 fifo_wr, fifo_rd;
-    reg  [DATABITS-1:0] fifo_wr_data;
-    wire [DATABITS-1:0] fifo_rd_data;
-    wire          [4:0] fifo_filled;
-    fsfifo #(.WIDTH(DATABITS), .DEPTH(16)) read_fifo (
-        .clk_i(clk_i), .reset_i(spi_reset),
-        .full_o(fifo_full), .empty_o(fifo_empty), .filled_o(fifo_filled),
-        .wr_i(fifo_wr), .wr_data_i(fifo_wr_data),
-        .rd_i(fifo_rd), .rd_data_o(fifo_rd_data)
-    );
-
-    // send read data
-    reg read_this_cycle;
-    always @(posedge clk_i) begin
-        if (spi_reset || wstb_pe) read_this_cycle <= 'b0;
-
-        fifo_rd <= 'b0;
-        if (spi_state_next == SPI_STATE_READ_DATA && (!fifo_empty || fifo_wr) && !read_this_cycle) begin
-            //&& (/*inflight_none*/ (fifo_empty && fifo_wr) || (!fifo_empty && wstb_pe))) begin
-            fifo_rd <= 'b1;
-            read_this_cycle <= 'b1;
-        end
-    end
-
-    reg fifo_rd_delayed;
-    always @(posedge clk_i) fifo_rd_delayed <= fifo_rd;
-
-    reg first_rd_complete;
-    always @(posedge clk_i) begin
-        if (spi_reset)
-            first_rd_complete <= 'b0;
-        else if (spi_state_next == SPI_STATE_READ_DATA && fifo_rd_delayed)
-            first_rd_complete <= 'b1;
-    end
-
-    always @(posedge clk_i) begin
-        if (spi_reset) begin
-            txndata_o <= 'b0;
-        end else if ((!first_rd_complete && fifo_rd_delayed) || wstb_pe) begin
-            txndata_o <= 'b0;
-            txndata_o[DATABITS-1:0] <= fifo_rd_data;
-        end
-    end
-
-    // in-flight counter for sequential reads
-    reg [4:0] inflight;
-    //wire inflight_max, inflight_none;
-    //assign inflight_max  = inflight == 4'hF;
-    //assign inflight_none = inflight == 4'h0;
-    wire [4:0] active_reqs;
-    wire       req_pipe_full;
-    assign active_reqs = fifo_filled + inflight + {4'b0, fifo_wr}; //5'(fifo_wr);
-    assign req_pipe_full = active_reqs[4];
-
     // Wishbone control
 
+    reg wb_done;
     always @(posedge clk_i) begin
         wb_stb_o <= 'b0;
-        fifo_wr  <= 'b0;
         if (reset_i) begin
-            wb_cyc_o     <= 'b0;
-            wb_we_o      <= 'b0;
-            wb_adr_o     <= 'b0;
-            wb_dat_o     <= 'b0;
-            fifo_wr_data <= 'b0;
-            inflight     <= 'b0;
+            wb_cyc_o  <= 'b0;
+            wb_we_o   <= 'b0;
+            wb_adr_o  <= 'b0;
+            wb_dat_o  <= 'b0;
             //txndata_o <= 'b0;
+            wb_done   <= 'b0;
         end else begin
             if (wb_cyc_o && wb_ack_i) begin
-                // drop cyc if we're not doing sequential reads
-                if (txnreset_sync || wb_we_o)
-                    wb_cyc_o     <= 'b0;
+                wb_done   <= 'b1;
+                wb_cyc_o  <= 'b0;
                 if (!wb_we_o) begin
-                    // only subtract if we're not adding later
-                    if (!wb_req || req_pipe_full || wb_stall_i || cmd_is_write)
-                        inflight <= inflight - 'b1;
-                    // assert !fifo_full
-                    fifo_wr      <= 'b1;
-                    fifo_wr_data <= wb_dat_i;
-                    //txndata_o[DATABITS-1:0] <= wb_dat_i;
+                    txndata_o[DATABITS-1:0] <= wb_dat_i;
                     // leftover bits set to zero
-                    //txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
+                    txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
                 end
             end
 
-            if (wb_req && !wb_stall_i && !req_pipe_full) begin
+            if (wb_req && !wb_done && !wb_stall_i) begin
                 wb_cyc_o <= 'b1;
                 wb_stb_o <= 'b1;
                 wb_adr_o <= addr_q;
                 wb_we_o  <= cmd_is_write;
                 wb_dat_o <= data_q;
-                // if read
-                if (!cmd_is_write) begin
-                    // only add if we're not subtracting earlier
-                    if (!wb_cyc_o || !wb_ack_i) inflight <= inflight + 'b1;
-                    // if sequential
-                    if (wb_cyc_o)
-                        wb_adr_o <= addr_counter;
-                end
             //end else if (wb_cyc_o) begin
             end else if (txnreset_sync) begin
                 wb_cyc_o <= 'b0;
                 wb_we_o  <= 'b0;
                 wb_adr_o <= 'b0;
                 wb_dat_o <= 'b0;
-                inflight <= 'b0;
+                wb_done  <= 'b0;
             end
         end
     end
