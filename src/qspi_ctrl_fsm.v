@@ -34,7 +34,7 @@ module qspi_ctrl_fsm #(
     output reg                        wb_cyc_o,
     output reg                        wb_stb_o,
     output reg                        wb_we_o,
-    output reg                 [31:0] wb_adr_o,
+    output reg         [ADDRBITS-1:0] wb_adr_o,
     output reg         [DATABITS-1:0] wb_dat_o,
     input                             wb_err_i,
     input                             wb_ack_i,
@@ -51,14 +51,11 @@ module qspi_ctrl_fsm #(
     localparam ADDRBITS_RND = 8 * ((ADDRBITS + 8 - 1)/8);
     localparam DATABITS_RND = 8 * ((DATABITS + 8 - 1)/8);
 
-    localparam [2:0] SPI_STATE_CMD             = 3'h0,
-                     SPI_STATE_ADDR            = 3'h1,
-                     SPI_STATE_FAST_READ_STALL = 3'h2,
-                     SPI_STATE_READ_DATA       = 3'h3,
-                     SPI_STATE_PROG_WORD_DATA  = 3'h4,
-                     SPI_STATE_WRITE_THRU_DATA = 3'h5,
-                     SPI_STATE_RFU_0           = 3'h6,
-                     SPI_STATE_PAGE_PROG_DATA  = 3'h7;
+    localparam [2:0] SPI_STATE_CMD        = 3'h0,
+                     SPI_STATE_ADDR       = 3'h1,
+                     SPI_STATE_STALL      = 3'h2,
+                     SPI_STATE_READ_DATA  = 3'h3,
+                     SPI_STATE_WRITE_DATA = 3'h5;
 
     // synchronize SPI -> sys
     wire wstb, wstb_pe;
@@ -79,8 +76,6 @@ module qspi_ctrl_fsm #(
 
     // wb control
     reg wb_req;
-    // NOR command is packed into the top 6 bits of address
-    reg  [5:0] nor_cmd;
     // write direction
     wire cmd_is_write;
 
@@ -94,14 +89,11 @@ module qspi_ctrl_fsm #(
         for (i = 0; i < 8; i = i + 1) begin
             txn_config_reg[i] = { 8'h08, 1'b0 }; // COMMAND: quad-SPI, input, 8 bits
         end
-        txn_config_reg[0] = { 8'h08,             1'b0 }; // COMMAND:           quad-SPI, input, 8 cycles
-        txn_config_reg[1] = { ADDRBITS_RND[7:0], 1'b0 }; // ADDR:              quad-SPI, input
-        txn_config_reg[2] = { 8'h50,             1'b0 }; // FAST READ STALL:   quad-SPI, input, 20 cycles
-        txn_config_reg[3] = { DATABITS_RND[7:0], 1'b1 }; // READ DATA:         quad-SPI, output
-        txn_config_reg[4] = { DATABITS_RND[7:0], 1'b0 }; // PROG WORD DATA:    quad-SPI, input
-        txn_config_reg[5] = { DATABITS_RND[7:0], 1'b0 }; // WRITE THRU DATA:   quad-SPI, input
-        txn_config_reg[6] = { 8'h08,             1'b0 }; // RFU 0              quad-SPI, input, 8 cycles
-        txn_config_reg[7] = { DATABITS_RND[7:0], 1'b0 }; // PAGE PROG DATA:    quad-SPI, input
+        txn_config_reg[0] = { 8'h08,             1'b0 }; // COMMAND:    quad-SPI, input, 8 cycles
+        txn_config_reg[1] = { ADDRBITS_RND[7:0], 1'b0 }; // ADDR:       quad-SPI, input
+        txn_config_reg[2] = { 8'h50,             1'b0 }; // STALL:      quad-SPI, input, 20 cycles
+        txn_config_reg[3] = { DATABITS_RND[7:0], 1'b1 }; // READ DATA:  quad-SPI, output
+        txn_config_reg[5] = { DATABITS_RND[7:0], 1'b0 }; // WRITE DATA: quad-SPI, input
     end
 
     // synchronize to txndone rising edge (word strobe)
@@ -120,21 +112,18 @@ module qspi_ctrl_fsm #(
     always @(*) begin
         case (spi_state)
             SPI_STATE_CMD: case(cmd_q)
-                `SPI_COMMAND_BULK_ERASE: spi_state_next = SPI_STATE_CMD;
                 default:                 spi_state_next = SPI_STATE_ADDR;
             endcase
             SPI_STATE_ADDR: case (cmd_q)
                 `SPI_COMMAND_READ:       spi_state_next = SPI_STATE_READ_DATA;
-                `SPI_COMMAND_FAST_READ:  spi_state_next = SPI_STATE_FAST_READ_STALL;
-                `SPI_COMMAND_PROG_WORD:  spi_state_next = SPI_STATE_PROG_WORD_DATA;
-                `SPI_COMMAND_WRITE_THRU: spi_state_next = SPI_STATE_WRITE_THRU_DATA;
-                `SPI_COMMAND_PAGE_PROG:  spi_state_next = SPI_STATE_PAGE_PROG_DATA;
+                `SPI_COMMAND_FAST_READ:  spi_state_next = SPI_STATE_STALL;
+                `SPI_COMMAND_WRITE_THRU: spi_state_next = SPI_STATE_WRITE_DATA;
                 default:                 spi_state_next = SPI_STATE_CMD;
             endcase
-            SPI_STATE_FAST_READ_STALL:   spi_state_next = SPI_STATE_READ_DATA;
+            SPI_STATE_STALL:             spi_state_next = SPI_STATE_READ_DATA;
             SPI_STATE_READ_DATA:         spi_state_next = SPI_STATE_READ_DATA; // continuous reads
-            SPI_STATE_PAGE_PROG_DATA:    spi_state_next = SPI_STATE_PAGE_PROG_DATA;
-            default:                     spi_state_next = SPI_STATE_CMD;
+            SPI_STATE_WRITE_DATA:        spi_state_next = SPI_STATE_ADDR;      // continuous writes
+            default:                     spi_state_next = 3'bxxx;
         endcase
     end
     always @(posedge clk_i) begin
@@ -149,47 +138,24 @@ module qspi_ctrl_fsm #(
             addr_q <= 'b0;
             data_q <= 'b0;
         end else if (wstb_pe) case (spi_state)
-            SPI_STATE_CMD:             cmd_q  <= txndata_i[7:0];
-            SPI_STATE_ADDR:            addr_q <= txndata_i[ADDRBITS-1:0];
-            SPI_STATE_PROG_WORD_DATA,
-            SPI_STATE_PAGE_PROG_DATA,
-            SPI_STATE_WRITE_THRU_DATA: data_q <= txndata_i[DATABITS-1:0];
+            SPI_STATE_CMD:        cmd_q  <= txndata_i[7:0];
+            SPI_STATE_ADDR:       addr_q <= txndata_i[ADDRBITS-1:0];
+            SPI_STATE_WRITE_DATA: data_q <= txndata_i[DATABITS-1:0];
             default:;
         endcase
-
-    // assign NOR command
-    always @(*) case (cmd_q)
-        `SPI_COMMAND_READ:       nor_cmd = `NOR_CYCLE_READ;
-        `SPI_COMMAND_FAST_READ:  nor_cmd = `NOR_CYCLE_READ;
-        `SPI_COMMAND_BULK_ERASE: nor_cmd = `NOR_CYCLE_ERASE_CHIP;
-        `SPI_COMMAND_SECT_ERASE: nor_cmd = `NOR_CYCLE_ERASE_SECTOR;
-        `SPI_COMMAND_PROG_WORD:  nor_cmd = `NOR_CYCLE_PROGRAM;
-        `SPI_COMMAND_RESET:      nor_cmd = `NOR_CYCLE_RESET;
-        `SPI_COMMAND_WRITE_THRU: nor_cmd = `NOR_CYCLE_WRITE;
-        //`SPI_COMMAND_PAGE_PROG:  nor_cmd = `NOR_CYCLE_WRITE_BUF;
-        default:                 nor_cmd = `NOR_CYCLE_RESET;
-    endcase
 
     // request generation
     always @(posedge clk_i) begin
         wb_req <= 'b0;
-        if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_FAST_READ_STALL)) && !txnreset_sync) begin
+        if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_STALL)) && !txnreset_sync) begin
             wb_req <= 'b1;
         end else if (wstb_pe) case (spi_state)
-            // cmd is txndata_i[7:0] on command cycle since cmd_q is latched on this cycle
-            SPI_STATE_CMD: case (txndata_i[7:0])
-                `SPI_COMMAND_BULK_ERASE: wb_req <= 1'b1;
-                `SPI_COMMAND_RESET:      wb_req <= 1'b1;
-                default:                 wb_req <= 1'b0;
-            endcase
             SPI_STATE_ADDR: case (cmd_q)
                 `SPI_COMMAND_READ:       wb_req <= 1'b1;
                 `SPI_COMMAND_FAST_READ:  wb_req <= 1'b1;
-                `SPI_COMMAND_SECT_ERASE: wb_req <= 1'b1;
                 default:                 wb_req <= 1'b0;
             endcase
-            SPI_STATE_PROG_WORD_DATA:    wb_req <= 1'b1;
-            SPI_STATE_WRITE_THRU_DATA:   wb_req <= 1'b1;
+            SPI_STATE_WRITE_DATA:        wb_req <= 1'b1;
             default:                     wb_req <= 1'b0;
         endcase
     end
@@ -308,7 +274,7 @@ module qspi_ctrl_fsm #(
             if (wb_req && !wb_stall_i && !req_pipe_full) begin
                 wb_cyc_o <= 'b1;
                 wb_stb_o <= 'b1;
-                wb_adr_o <= { nor_cmd, addr_q };
+                wb_adr_o <= addr_q;
                 wb_we_o  <= cmd_is_write;
                 wb_dat_o <= data_q;
                 // if read
@@ -317,7 +283,7 @@ module qspi_ctrl_fsm #(
                     if (!wb_cyc_o || !wb_ack_i) inflight <= inflight + 'b1;
                     // if sequential
                     if (wb_cyc_o)
-                        wb_adr_o <= { nor_cmd, addr_counter };
+                        wb_adr_o <= addr_counter;
                 end
             //end else if (wb_cyc_o) begin
             end else if (txnreset_sync) begin

@@ -84,8 +84,8 @@ async def test_slow_read(dut):
     await Join(task)
 
 @cocotb.test()
-async def test_cmd_translation(dut):
-    """Test command translation (erase sector)"""
+async def test_cmd_execution(dut):
+    """Test command execution (erase sector)"""
 
     await setup(dut)
 
@@ -101,9 +101,27 @@ async def test_cmd_translation(dut):
           'ack': dut.wb_ack_i,
         'dat_i': dut.wb_dat_o
     }
-    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=2000, stall_cycles=4, log=dut._log.info))
 
-    await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=20, sce_pol=1, log=dut._log.info)
+    sa = 0x50000
+
+    expected = [
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (0x555, 0x80),
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (sa,    0x30),
+    ]
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(bus_wb, expected, timeout=10000, stall_cycles=4, log=dut._log.info))
+    #task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=2000, stall_cycles=4, log=dut._log.info))
+
+    #await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=20, sce_pol=1, log=dut._log.info)
+    # send erase sequence
+    for t in expected:
+        a,d = t
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(300, 'ns')
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -168,9 +186,25 @@ async def test_prog_word(dut):
         'dat_i': dut.wb_dat_o
     }
 
-    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0x08030000, 0xABCD, timeout=2000, stall_cycles=10, log=dut._log.info))
+    addr = 0x30000
+    data = 0xABCD
 
-    await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=20, sce_pol=1, log=dut._log.info)
+    expected = [
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (0x555, 0xA0),
+        (addr,  data),
+    ]
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(bus_wb, expected, timeout=10000, stall_cycles=10, log=dut._log.info))
+    #task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0x08030000, 0xABCD, timeout=2000, stall_cycles=10, log=dut._log.info))
+
+    #await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=20, sce_pol=1, log=dut._log.info)
+    # send program sequence
+    for t in expected:
+        a,d = t
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(300, 'ns')
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)

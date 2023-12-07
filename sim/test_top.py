@@ -84,7 +84,14 @@ async def test_program(dut):
     # send program
     pa = 0x0000400
     pd = 0x3456
-    await qspi.prog_word(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xA0, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
+    #await qspi.prog_word(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
 
     # now wait until ready with timeout at 100us

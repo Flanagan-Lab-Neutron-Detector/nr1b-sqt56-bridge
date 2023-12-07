@@ -51,15 +51,9 @@ module top #(
 
     // wb connecting qspi and nor controller
     wire wb_ctrl_cyc, wb_ctrl_stb, wb_ctrl_we, wb_ctrl_err, wb_ctrl_ack, wb_ctrl_stall;
-    wire         [31:0] wb_ctrl_adr;
+    wire [ADDRBITS-1:0] wb_ctrl_adr;
     wire [DATABITS-1:0] wb_ctrl_dat_i;
     wire [DATABITS-1:0] wb_ctrl_dat_o;
-
-    // wb connecting nor controller and nor driver
-    wire wb_nor_cyc, wb_nor_stb, wb_nor_we, wb_nor_err, wb_nor_ack, wb_nor_stall;
-    wire [ADDRBITS-1:0] wb_nor_adr;
-    wire [DATABITS-1:0] wb_nor_dat_i;
-    wire [DATABITS-1:0] wb_nor_dat_o;
 
     reg         txndir, txndone;
     reg   [7:0] txnbc;
@@ -119,26 +113,12 @@ module top #(
         .wb_dat_i(wb_ctrl_dat_o)
     );
 
-    wb_nor_controller #(.ADDRBITS(26), .DATABITS(16)) nor_ctrl (
-        .wb_rst_i(reset_i), .wb_clk_i(clk_i),
-
-        .wbs_adr_i(wb_ctrl_adr), .wbs_dat_i(wb_ctrl_dat_i),
-        .wbs_we_i(wb_ctrl_we), .wbs_stb_i(wb_ctrl_stb), .wbs_cyc_i(wb_ctrl_cyc),
-        .wbs_err_o(wb_ctrl_err), .wbs_ack_o(wb_ctrl_ack),
-        .wbs_dat_o(wb_ctrl_dat_o), .wbs_stall_o(wb_ctrl_stall),
-
-        .wbm_adr_o(wb_nor_adr), .wbm_dat_o(wb_nor_dat_o),
-        .wbm_we_o(wb_nor_we), .wbm_cyc_o(wb_nor_cyc), .wbm_stb_o(wb_nor_stb),
-        .wbm_err_i(wb_nor_err), .wbm_ack_i(wb_nor_ack),
-        .wbm_dat_i(wb_nor_dat_i), .wbm_stall_i(wb_nor_stall)
-    );
-
     nor_bus #(.ADDRBITS(26), .DATABITS(16)) norbus (
         .wb_rst_i(reset_i), .wb_clk_i(clk_i),
-        .wb_adr_i(wb_nor_adr), .wb_dat_i(wb_nor_dat_o),
-        .wb_we_i(wb_nor_we), .wb_stb_i(wb_nor_stb), .wb_cyc_i(wb_nor_cyc),
-        .wb_err_o(wb_nor_err),
-        .wb_ack_o(wb_nor_ack), .wb_dat_o(wb_nor_dat_i), .wb_stall_o(wb_nor_stall),
+        .wb_adr_i(wb_ctrl_adr), .wb_dat_i(wb_ctrl_dat_i),
+        .wb_we_i(wb_ctrl_we), .wb_stb_i(wb_ctrl_stb), .wb_cyc_i(wb_ctrl_cyc),
+        .wb_err_o(wb_ctrl_err),
+        .wb_ack_o(wb_ctrl_ack), .wb_dat_o(wb_ctrl_dat_o), .wb_stall_o(wb_ctrl_stall),
 
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i),
         .nor_data_o(nor_data_o), .nor_addr_o(nor_addr_o),

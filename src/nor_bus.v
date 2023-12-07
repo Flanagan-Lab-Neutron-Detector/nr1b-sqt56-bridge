@@ -35,9 +35,14 @@ module nor_bus #(
     output reg                nor_data_oe // 0 = input, 1 = output
 );
 
+    reg cyc_read;
+    always @(posedge wb_clk_i)
+        if (wb_rst_i || !wb_cyc_i || wb_err_o) cyc_read <= 'b0;
+        else if (wb_cyc_i && !wb_we_i)         cyc_read <= 'b1;
+
     // wb bus interface + NOR state machine
     wire mod_reset;
-    assign mod_reset = wb_rst_i || !wb_cyc_i || wb_err_o;
+    assign mod_reset = wb_rst_i || (!wb_cyc_i && cyc_read) || wb_err_o;
 
     assign wb_err_o = 'b0;
 

@@ -26,7 +26,7 @@ module tb_xspi_phy #(
     output reg                wb_cyc_o,
     output reg                wb_stb_o,
     output reg                wb_we_o,
-    output reg         [31:0] wb_adr_o,
+    output reg [ADDRBITS-1:0] wb_adr_o,
     output reg [DATABITS-1:0] wb_dat_o,
     input                     wb_err_i,
     input                     wb_ack_i,
