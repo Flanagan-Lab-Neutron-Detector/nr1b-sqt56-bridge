@@ -54,7 +54,7 @@ async def test_read(dut):
     for i in range(4):
         ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 1024*64*i, 1, freq=spi_freq)
         assert ret_val[0] == 0xFFFF
-        await ClockCycles(dut.clk_i, 1)
+        await ClockCycles(dut.clk_i, 10)
 
     nor_task.kill()
 
@@ -139,7 +139,7 @@ async def test_erase_sector(dut):
     # Sector erase busy time is typically 0.5s, so we set it to shorter here
     model.tbusy_erase_sector = 1000 # 1 us
 
-    sector_address = 1024*64*7
+    sector_address = 640 * 65536
     for i in range(32):
         model.mem.program(sector_address + i, i)
     data_str = ' '.join([f"{x:04X}" for x in model.mem.mem[sector_address:sector_address+i]])
