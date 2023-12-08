@@ -14,7 +14,6 @@ V_SRC = \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/qspi_ctrl_fsm.v \
-	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/fsfifo.v \
 	$(SRCDIR)/sync2.v
 export TOP   # expose to synth.tcl
