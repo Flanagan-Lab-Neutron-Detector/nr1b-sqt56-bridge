@@ -3,7 +3,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer, with_timeout
 from test_helpers import nor, qspi
 
-spi_freq = 20
+spi_freq = 12.7 # 20
 
 async def setup(dut):
     """Setup DUT"""

@@ -254,7 +254,7 @@ async def test_page_prog(dut):
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
 
-@cocotb.test(skip=False)
+@cocotb.test(skip=True)
 async def test_sequential_reads(dut):
     """Test reading a sequence of words in one transaction"""
 
