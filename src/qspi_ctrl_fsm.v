@@ -170,7 +170,8 @@ module qspi_ctrl_fsm #(
         else if (txnreset_sync) begin
             if (cmd_q == `SPI_COMMAND_DET_VT)
                 vt_mode <= 1'b1;
-            else if (cmd_q == `SPI_COMMAND_RESET)
+            //else if (cmd_q == `SPI_COMMAND_RESET)
+            else if (cmd_q == `SPI_COMMAND_WRITE_THRU && data_q == 16'h00F0)
                 vt_mode <= 1'b0;
         end
 
