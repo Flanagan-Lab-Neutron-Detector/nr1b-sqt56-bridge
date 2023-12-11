@@ -55,13 +55,13 @@ module nor_bus #(
         if (mod_reset || wb_ack_o) begin
             req_data0 <= 'b0;
             req_dv    <= 'b0;
-        end else if (wb_cyc_i && wb_stb_i && !wb_stall_o) begin
+        end else if (wb_cyc_i && wb_stb_i && !nor_stall) begin
             req_data0 <= { wb_we_i, wb_dat_i, wb_adr_i };
             req_dv    <= 'b1;
         end
     end
 
-    assign wb_stall_o = nor_stall;
+    assign wb_stall_o = req_dv || wb_stb_i;
     wire nor_stall;
 
     nor_bus_driver #(.ADDRBITS(ADDRBITS), .DATABITS(DATABITS)) nor_bus_driver (
