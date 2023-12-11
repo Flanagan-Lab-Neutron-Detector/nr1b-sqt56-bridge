@@ -35,6 +35,8 @@ module nor_bus #(
     output reg                nor_data_oe // 0 = input, 1 = output
 );
 
+    localparam REQBITS = ADDRBITS + DATABITS + 1;
+
     reg cyc_read;
     always @(posedge wb_clk_i)
         if (wb_rst_i || !wb_cyc_i || wb_err_o) cyc_read <= 'b0;
@@ -46,15 +48,15 @@ module nor_bus #(
 
     assign wb_err_o = 'b0;
 
-    reg         req_dv;
-    reg  [47:0] req_data0;
+    reg                req_dv;
+    reg  [REQBITS-1:0] req_data0;
 
     always @(posedge wb_clk_i) begin
         if (mod_reset || wb_ack_o) begin
             req_data0 <= 'b0;
             req_dv    <= 'b0;
         end else if (wb_cyc_i && wb_stb_i && !wb_stall_o) begin
-            req_data0 <= { {(48-ADDRBITS-DATABITS-1){1'b0}}, wb_we_i, wb_dat_i, wb_adr_i };
+            req_data0 <= { wb_we_i, wb_dat_i, wb_adr_i };
             req_dv    <= 'b1;
         end
     end
@@ -85,7 +87,7 @@ module nor_bus_driver #(
     // pseudo-wishbone interface
     input                     rst_i,
     input                     clk_i,
-    input      [(ADDRBITS+DATABITS+1)-1:0] req_i,
+    input       [REQBITS-1:0] req_i,
     input                     req_valid_i,
     output reg                ack_o,
     output reg [DATABITS-1:0] data_o,
@@ -101,6 +103,8 @@ module nor_bus_driver #(
     output reg                nor_oe_o,
     output reg                nor_data_oe // 0 = input, 1 = output
 );
+
+    localparam REQBITS = ADDRBITS + DATABITS + 1;
 
     // unpack reqs
     wire                req_we;
