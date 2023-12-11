@@ -70,14 +70,9 @@ module qspi_ctrl_fsm #(
     reg [2:0] spi_state;
 
     // latched command words
-    reg          [7:0] cmd_q;
-    reg [ADDRBITS-1:0] addr_q;
-    reg [DATABITS-1:0] data_q;
-
-    // wb control
-    reg wb_req;
-    // write direction
-    wire cmd_is_write;
+    reg           [7:0] cmd_q;
+    wire [ADDRBITS-1:0] addr_q;
+    reg  [DATABITS-1:0] data_q;
 
     // { [CYCLE_COUNT_BITS+1-1:3]=bit_count, [0]=dir }
     reg [CYCLE_COUNT_BITS+1-1:0] txn_config_reg[8];
@@ -131,37 +126,18 @@ module qspi_ctrl_fsm #(
         else if (wstb_pe) spi_state <= spi_state_next;
     end
 
-    // latch data
+    // latch command and data (address latched by addr counter)
     always @(posedge clk_i)
         if (reset_i) begin
             cmd_q  <= 'b0;
-            addr_q <= 'b0;
+            //addr_q <= 'b0;
             data_q <= 'b0;
-        end else if (wstb_pe) case (spi_state)
+        end else if (wstb_pe) begin case (spi_state)
             SPI_STATE_CMD:        cmd_q  <= txndata_i[7:0];
-            SPI_STATE_ADDR:       addr_q <= txndata_i[ADDRBITS-1:0];
+            //SPI_STATE_ADDR:       addr_q <= txndata_i[ADDRBITS-1:0];
             SPI_STATE_WRITE_DATA: data_q <= txndata_i[DATABITS-1:0];
             default:;
-        endcase
-
-    // request generation
-    always @(posedge clk_i) begin
-        wb_req <= 'b0;
-        if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_STALL)) && !txnreset_sync) begin
-            wb_req <= 'b1;
-        end else if (wstb_pe) case (spi_state)
-            SPI_STATE_ADDR: case (cmd_q)
-                `SPI_COMMAND_READ:       wb_req <= 1'b1;
-                `SPI_COMMAND_FAST_READ:  wb_req <= 1'b1;
-                default:                 wb_req <= 1'b0;
-            endcase
-            SPI_STATE_WRITE_DATA:        wb_req <= 1'b1;
-            default:                     wb_req <= 1'b0;
-        endcase
-    end
-
-    // request write status
-    assign cmd_is_write = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
+        endcase end
 
     // VT override control
     always @(posedge clk_i)
@@ -175,43 +151,115 @@ module qspi_ctrl_fsm #(
                 vt_mode <= 1'b0;
         end
 
+    // (wb) read/write request generation
+
+    // wb control
+    reg wb_write_req, wb_read_req, wb_req;
+    always @(*) wb_req = wb_write_req || wb_read_req;
+    // write direction
+    wire cmd_is_write;
+    assign cmd_is_write = !((cmd_q == `SPI_COMMAND_READ) || (cmd_q == `SPI_COMMAND_FAST_READ));
+
+    // pipeline management
+    // Ack FIFO
+    wire pipe_fifo_full, pipe_fifo_empty;
+    wire [4:0] pipe_fifo_filled;
+    reg  pipe_fifo_wr;
+    wire pipe_fifo_rd;
+    reg  [DATABITS-1:0] pipe_fifo_wr_data;
+    //wire [DATABITS-1:0] pipe_fifo_rd_data;
+    fsfifo #(.WIDTH(DATABITS), .DEPTH(16)) pipe_fifo (
+        .clk_i(clk_i), .reset_i(spi_reset),
+        .full_o(pipe_fifo_full), .empty_o(pipe_fifo_empty),
+        .filled_o(pipe_fifo_filled),
+        .wr_i(pipe_fifo_wr), .wr_data_i(pipe_fifo_wr_data),
+        .rd_i(pipe_fifo_rd), .rd_data_o(txndata_o[DATABITS-1:0])
+    );
+
+    reg first_read;
+    assign pipe_fifo_rd = wstb_pe || (first_read && pipe_fifo_wr);
+    always @(posedge clk_i)
+        if (spi_reset)                          first_read <= 'b1;
+        else if (!cmd_is_write && pipe_fifo_wr) first_read <= 'b0;
+
+    // Read acks go to a 16-deep FIFO. FIFO filled + pending reqs must = 16 or data will be lost
+    reg  [4:0] pipe_inflight;
+    wire [4:0] pipe_total = pipe_fifo_filled + pipe_inflight;
+    wire pipeline_full = pipe_total[4];
+
+    // track inflight requests
+    always @(posedge clk_i) begin
+        if (spi_reset) pipe_inflight <= 'b0;
+        else case ({ wb_stb_o, wb_ack_i })
+            2'b01: pipe_inflight <= pipe_inflight - 1;
+            2'b10: pipe_inflight <= pipe_inflight + 1;
+            default: pipe_inflight <= pipe_inflight;
+        endcase
+    end
+
+    // write request generation
+    always @(posedge clk_i) wb_write_req <= wstb_pe && (spi_state == SPI_STATE_WRITE_DATA);
+
+    // read request generation
+    always @(posedge clk_i) begin
+        wb_read_req <= 'b0;
+        if (!pipeline_full) begin
+            if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_STALL)) && !txnreset_sync) begin
+                wb_read_req <= 'b1;
+            end else if (wstb_pe)
+                // true when address phase finishes -- this will be the first pipelined read request
+                wb_read_req <= !cmd_is_write && (spi_state == SPI_STATE_ADDR);
+        end
+    end
+
+    // address counter
+    reg  [ADDRBITS-1:0] addr_counter;
+    wire [ADDRBITS-1:0] addr_reset = 'b0;
+    wire [ADDRBITS-1:0] addr_latch_val = txndata_i[ADDRBITS-1:0];
+    wire addr_latch = wstb_pe && (spi_state == SPI_STATE_ADDR);
+    wire addr_inc   = wb_stb_o;
+    always @(posedge clk_i)
+        if (reset_i)         addr_counter <= addr_reset;
+        else if (addr_latch) addr_counter <= addr_latch_val;
+        else if (addr_inc)   addr_counter <= addr_counter + 'b1;
+    assign addr_q = addr_counter;
+
     // Wishbone control
 
-    reg wb_done;
     always @(posedge clk_i) begin
-        wb_stb_o <= 'b0;
+        txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
+        wb_stb_o          <= 'b0;
+        pipe_fifo_wr      <= 'b0;
+        pipe_fifo_wr_data <= 'b0;
         if (reset_i) begin
             wb_cyc_o  <= 'b0;
             wb_we_o   <= 'b0;
             wb_adr_o  <= 'b0;
             wb_dat_o  <= 'b0;
-            //txndata_o <= 'b0;
-            wb_done   <= 'b0;
         end else begin
             if (wb_cyc_o && wb_ack_i) begin
-                wb_done   <= 'b1;
                 wb_cyc_o  <= 'b0;
                 if (!wb_we_o) begin
-                    txndata_o[DATABITS-1:0] <= wb_dat_i;
+                    pipe_fifo_wr      <= 'b1;
+                    pipe_fifo_wr_data <= wb_dat_i;
+                    //txndata_o[DATABITS-1:0] <= wb_dat_i;
                     // leftover bits set to zero
-                    txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
+                    //
                 end
             end
 
-            if (wb_req && !wb_done && !wb_stall_i) begin
+            if (wb_req && !wb_stall_i) begin
                 wb_cyc_o <= 'b1;
                 wb_stb_o <= 'b1;
                 wb_adr_o <= addr_q;
                 wb_we_o  <= cmd_is_write;
                 wb_dat_o <= data_q;
-            //end else if (wb_cyc_o) begin
-            end else if (txnreset_sync) begin
+            end /*else if (txnreset_sync) begin
                 wb_cyc_o <= 'b0;
                 wb_we_o  <= 'b0;
                 wb_adr_o <= 'b0;
                 wb_dat_o <= 'b0;
-                wb_done  <= 'b0;
-            end
+            end*/
         end
     end
 
