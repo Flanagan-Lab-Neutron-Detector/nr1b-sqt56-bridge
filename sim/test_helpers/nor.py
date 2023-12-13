@@ -2,7 +2,7 @@
 
 from typing import Union
 import cocotb
-from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer
+from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer, ReadOnly
 from array import array
 from enum import Enum
 
@@ -199,6 +199,7 @@ class nor_flash_behavioral_x16:
                 self.log("[flash] IDLE wait for request")
                 #await First(FallingEdge(bus['we']), FallingEdge(bus['oe']))
                 await FallingEdge(bus['ce'])
+                await ReadOnly()
                 self.log(f"[flash] IDLE request ce={bus['ce'].value} oe={bus['oe'].value} we={bus['we'].value}")
                 if not bus['ce'].value: # we only care if CE is low TODO: fix this
                     assert bus['we'].value or bus['oe'].value # at most one should be asserted
