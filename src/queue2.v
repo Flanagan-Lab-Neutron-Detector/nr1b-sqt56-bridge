@@ -25,13 +25,13 @@ module queue2 #(
 );
 
     assign o_full  = &o_vld;
-    assign o_empty = !|o_vld;
+    assign o_empty = !(|o_vld);
     wire write = i_wr && !o_full;
     wire read  = i_rd && !o_empty;
 
     always @(posedge i_clk) begin
-        o_rd_data1 <= 'bx;
-        o_rd_data0 <= 'bx;
+        o_rd_data1 <= 'x;
+        o_rd_data0 <= 'x;
         if (write && read) begin
             if (o_vld == 2'b11) begin
                 o_rd_data1 <= i_wr_data;
