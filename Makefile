@@ -15,7 +15,8 @@ V_SRC = \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/qspi_ctrl_fsm.v \
 	$(SRCDIR)/fsfifo.v \
-	$(SRCDIR)/sync2.v
+	$(SRCDIR)/sync2.v \
+	$(SRCDIR)/queue.v
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
 
