@@ -64,7 +64,7 @@ module nor_bus #(
         .i_rd(wb_ack_o), .o_rd_data1(req_data1), .o_rd_data0(req_data0)
     );
 
-    assign wb_stall_o = queue_full || wb_stb_i;
+    assign wb_stall_o = queue_full;
     wire nor_stall;
 
     nor_bus_driver #(.ADDRBITS(ADDRBITS), .DATABITS(DATABITS)) nor_bus_driver (
