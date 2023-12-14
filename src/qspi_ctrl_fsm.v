@@ -178,18 +178,20 @@ module qspi_ctrl_fsm #(
 
     assign pipe_fifo_rd = wstb_pe;
 
-    // Read acks go to a 16-deep FIFO. FIFO filled + pending reqs must = 16 or data will be lost
+    // Read acks go to a 16-deep FIFO. FIFO filled + pending reqs must be <= 16 or data will be lost
     reg  [4:0] pipe_inflight;
     wire [4:0] pipe_total = pipe_fifo_filled + pipe_inflight;
     wire inflight_empty = pipe_inflight == 'b0;
     wire pipeline_full = pipe_total[4];
 
     // track inflight requests
+    wire pipe_valid_wr = wb_stb_o;
+    wire pipe_valid_rd = wb_ack_i && !inflight_empty;
     always @(posedge clk_i) begin
         if (spi_reset) pipe_inflight <= 'b0;
-        else case ({ wb_stb_o, wb_ack_i })
-            2'b01: pipe_inflight <= pipe_inflight - 1;
-            2'b10: pipe_inflight <= pipe_inflight + 1;
+        else case ({ pipe_valid_wr, pipe_valid_rd })
+            2'b01: pipe_inflight <= inflight_empty ? 'x : pipe_inflight - 1;
+            2'b10: pipe_inflight <= pipeline_full  ? 'x : pipe_inflight + 1;
             default: pipe_inflight <= pipe_inflight;
         endcase
     end
@@ -233,23 +235,20 @@ module qspi_ctrl_fsm #(
         txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
         pipe_fifo_wr      <= 'b0;
         pipe_fifo_wr_data <= 'b0;
+        wb_we_o           <= 'b0;
         if (reset_i) begin
-            wb_cyc_o  <= 'b0;
-            wb_we_o   <= 'b0;
-            wb_dat_o  <= 'b0;
+            wb_cyc_o <= 'b0;
+            wb_dat_o <= 'b0;
         end else begin
             if (wb_cyc_o && wb_ack_i) begin
                 if (inflight_empty)
-                    wb_cyc_o  <= 'b0;
-                if (!wb_we_o) begin
-                    pipe_fifo_wr      <= 'b1;
-                    pipe_fifo_wr_data <= wb_dat_i;
-                end
+                    wb_cyc_o <= 'b0;
+                pipe_fifo_wr      <= 'b1;
+                pipe_fifo_wr_data <= wb_dat_i;
             end
 
             if (wb_read_req && txnreset_sync) begin
                 wb_cyc_o <= 'b0;
-                wb_we_o  <= 'b0;
                 wb_dat_o <= 'b0;
             end else if (wb_req && !wb_stall_i) begin
                 wb_cyc_o <= 'b1;
