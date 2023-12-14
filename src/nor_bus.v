@@ -54,7 +54,7 @@ module nor_bus #(
     reg  [REQBITS-1:0] req_data1;
     reg  [REQBITS-1:0] req_data0;
 
-    wire               queue_wr = wb_cyc_i && wb_stb_i && !nor_stall;
+    wire               queue_wr = wb_cyc_i && wb_stb_i;
     wire [REQBITS-1:0] queue_wr_data = { wb_we_i, wb_dat_i, wb_adr_i };
     wire               queue_full, queue_empty;
     queue2 #(.WIDTH(REQBITS)) inqueue (
@@ -177,68 +177,20 @@ module nor_bus_driver #(
             state <= next_state;
     end
 
+    always @(*) nor_data_oe = !nor_we_o;
+    always @(*) busy_o      = state != NOR_IDLE;
+    always @(*) ack_o       = counter_stb && ( (state == NOR_WRITE) || (state == NOR_READ) || (state == NOR_READPG) );
+    always @(*) data_o      = nor_data_i;
+
     always @(*) begin
-        nor_data_oe = !nor_we_o;
+        nor_data_o = req_valid_i[0] ? req_data : 'b0;
+        nor_addr_o = req_valid_i[0] ? req_addr : 'b0;
     end
 
-    always @(posedge clk_i) begin
-        ack_o <= 'b0;
-        if (rst_i) begin // synchronous reset
-            busy_o     <= 'b0;
-            nor_data_o <= 'b0;
-            nor_addr_o <= 'b0;
-            nor_ce_o   <= 'b1;
-            nor_we_o   <= 'b1;
-            nor_oe_o   <= 'b1;
-            data_o     <= 'b0;
-        end else begin
-            // if we are not busy, a transaction is requested, and it is a read or a write if ready
-            if (req_valid_i[0] && !busy_o && (!req_we || nor_ry_i)) begin
-                busy_o     <= 'b1;    // we are busy
-                nor_data_o <= req_data; // write data
-                nor_addr_o <= req_addr;
-                //if (req_we) begin
-                //    nor_we_o <= 1'b0;
-                //    nor_oe_o <= 1'b1;
-                //end else begin
-                //    nor_we_o <= 1'b1;
-                //    nor_oe_o <= 1'b0;
-                //end
-            end else if (busy_o) begin
-                nor_ce_o <= 1'b0;
-                nor_we_o <= !req_we;
-                nor_oe_o <=  req_we;
-                case(state)
-                    NOR_WRITE: begin
-                        if (counter_stb) begin
-                            ack_o <= 1'b1;
-                        end
-                    end
-                    NOR_READDLY: ;
-                    NOR_READ, NOR_READPG: begin
-                        if (counter_stb) begin
-                            data_o <= nor_data_i;
-                            ack_o <= 1'b1;
-                        end
-                    end
-                    NOR_TXN_END: begin
-                        if (counter_stb) begin
-                            busy_o <= 1'b0;
-                            nor_ce_o <= 'b1;
-                            nor_we_o <= 'b1;
-                            nor_oe_o <= 'b1;
-                        end
-                    end
-                    default: begin
-                        ack_o    <= 'b1;
-                        busy_o   <= 'b0;
-                        nor_ce_o <= 'b1;
-                        nor_we_o <= 'b1;
-                        nor_oe_o <= 'b1;
-                    end
-                endcase
-            end
-        end
+    always @(*) begin
+        nor_ce_o = !( (state != NOR_IDLE) && (state != NOR_TXN_END) );
+        nor_we_o = !(state == NOR_WRITE);
+        nor_oe_o = !( (state == NOR_READDLY) || (state == NOR_READ) || (state == NOR_READPG) );
     end
 
 endmodule
