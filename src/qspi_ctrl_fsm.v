@@ -176,15 +176,12 @@ module qspi_ctrl_fsm #(
         .rd_i(pipe_fifo_rd), .rd_data_o(txndata_o[DATABITS-1:0])
     );
 
-    reg first_read;
-    assign pipe_fifo_rd = wstb_pe || (first_read && pipe_fifo_wr);
-    always @(posedge clk_i)
-        if (spi_reset)                          first_read <= 'b1;
-        else if (!cmd_is_write && pipe_fifo_wr) first_read <= 'b0;
+    assign pipe_fifo_rd = wstb_pe;
 
     // Read acks go to a 16-deep FIFO. FIFO filled + pending reqs must = 16 or data will be lost
     reg  [4:0] pipe_inflight;
     wire [4:0] pipe_total = pipe_fifo_filled + pipe_inflight;
+    wire inflight_empty = pipe_inflight == 'b0;
     wire pipeline_full = pipe_total[4];
 
     // track inflight requests
@@ -212,6 +209,11 @@ module qspi_ctrl_fsm #(
         end
     end
 
+    // stb control
+    reg stb_d;
+    always @(posedge clk_i) stb_d <= !reset_i && !wb_stall_i && wb_req;
+    always @(*)             wb_stb_o = stb_d && !wb_stall_i;
+
     // address counter
     reg  [ADDRBITS-1:0] addr_counter;
     wire [ADDRBITS-1:0] addr_reset = 'b0;
@@ -226,40 +228,34 @@ module qspi_ctrl_fsm #(
 
     // Wishbone control
 
+    always @(*) wb_adr_o = addr_q;
     always @(posedge clk_i) begin
         txndata_o[IOREG_BITS-1:DATABITS] <= 'b0;
-        wb_stb_o          <= 'b0;
         pipe_fifo_wr      <= 'b0;
         pipe_fifo_wr_data <= 'b0;
         if (reset_i) begin
             wb_cyc_o  <= 'b0;
             wb_we_o   <= 'b0;
-            wb_adr_o  <= 'b0;
             wb_dat_o  <= 'b0;
         end else begin
             if (wb_cyc_o && wb_ack_i) begin
-                wb_cyc_o  <= 'b0;
+                if (inflight_empty)
+                    wb_cyc_o  <= 'b0;
                 if (!wb_we_o) begin
                     pipe_fifo_wr      <= 'b1;
                     pipe_fifo_wr_data <= wb_dat_i;
-                    //txndata_o[DATABITS-1:0] <= wb_dat_i;
-                    // leftover bits set to zero
-                    //
                 end
             end
 
-            if (wb_req && !wb_stall_i) begin
-                wb_cyc_o <= 'b1;
-                wb_stb_o <= 'b1;
-                wb_adr_o <= addr_q;
-                wb_we_o  <= cmd_is_write;
-                wb_dat_o <= data_q;
-            end /*else if (txnreset_sync) begin
+            if (wb_read_req && txnreset_sync) begin
                 wb_cyc_o <= 'b0;
                 wb_we_o  <= 'b0;
-                wb_adr_o <= 'b0;
                 wb_dat_o <= 'b0;
-            end*/
+            end else if (wb_req && !wb_stall_i) begin
+                wb_cyc_o <= 'b1;
+                wb_we_o  <= cmd_is_write;
+                wb_dat_o <= data_q;
+            end
         end
     end
 
