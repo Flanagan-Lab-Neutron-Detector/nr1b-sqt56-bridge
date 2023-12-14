@@ -198,7 +198,8 @@ class nor_flash_behavioral_x16:
             if self.if_state == self.bus_state.IDLE:
                 self.log("[flash] IDLE wait for request")
                 #await First(FallingEdge(bus['we']), FallingEdge(bus['oe']))
-                await FallingEdge(bus['ce'])
+                if bus['ce'].value: # if CE not already asserted
+                    await FallingEdge(bus['ce'])
                 await ReadOnly()
                 self.log(f"[flash] IDLE request ce={bus['ce'].value} oe={bus['oe'].value} we={bus['we'].value}")
                 if not bus['ce'].value: # we only care if CE is low TODO: fix this
