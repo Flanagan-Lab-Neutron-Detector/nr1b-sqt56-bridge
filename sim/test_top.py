@@ -46,14 +46,24 @@ async def test_read(dut):
             'ry': dut.nor_ry_i
     }
 
+    ad = [
+     (0*65536, 0x5432),
+     (1*65536, 0x6789),
+     (2*65536, 0x7654),
+     (3*65536, 0x89AB)
+    ]
+
     model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+    # pre-program values
+    for a,d in ad:
+        model.mem.program(a, d)
     nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
     await ClockCycles(dut.clk_i, 1)
 
     # test some reads
-    for i in range(4):
-        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 1024*64*i, 1, freq=spi_freq)
-        assert ret_val[0] == 0xFFFF
+    for a,d in ad:
+        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, a, 1, freq=spi_freq)
+        assert ret_val[0] == d
         await ClockCycles(dut.clk_i, 10)
 
     nor_task.kill()
