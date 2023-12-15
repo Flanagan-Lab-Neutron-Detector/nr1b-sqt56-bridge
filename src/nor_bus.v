@@ -177,20 +177,38 @@ module nor_bus_driver #(
             state <= next_state;
     end
 
-    always @(*) nor_data_oe = !nor_we_o;
+    reg                 nor_data_oe_d, nor_ce_d, nor_we_d, nor_oe_d;
+    reg                 ack_d;
+    reg  [DATABITS-1:0] data_d;
+    reg  [DATABITS-1:0] nor_data_d;
+    reg  [ADDRBITS-1:0] nor_addr_d;
+
+    always @(*) nor_data_oe_d = !nor_we_d;
     always @(*) busy_o      = state != NOR_IDLE;
-    always @(*) ack_o       = counter_stb && ( (state == NOR_WRITE) || (state == NOR_READ) || (state == NOR_READPG) );
-    always @(*) data_o      = nor_data_i;
+    always @(*) ack_d       = counter_stb && ( (state == NOR_WRITE) || (state == NOR_READ) || (state == NOR_READPG) );
+    always @(*) data_d      = nor_data_i;
 
     always @(*) begin
-        nor_data_o = req_valid_i[0] ? req_data : 'b0;
-        nor_addr_o = req_valid_i[0] ? req_addr : 'b0;
+        nor_data_d = req_valid_i[0] ? req_data : 'b0;
+        nor_addr_d = req_valid_i[0] ? req_addr : 'b0;
     end
 
     always @(*) begin
-        nor_ce_o = !( (state != NOR_IDLE) && (state != NOR_TXN_END) );
-        nor_we_o = !(state == NOR_WRITE);
-        nor_oe_o = !( (state == NOR_READDLY) || (state == NOR_READ) || (state == NOR_READPG) );
+        nor_ce_d = !( (state != NOR_IDLE) && (state != NOR_TXN_END) );
+        nor_we_d = !(state == NOR_WRITE);
+        nor_oe_d = !( (state == NOR_READDLY) || (state == NOR_READ) || (state == NOR_READPG) );
+    end
+
+    always @(posedge clk_i) begin
+        nor_data_oe <= nor_data_oe_d;
+        //busy_o <= busy_d;
+        ack_o <= ack_d;
+        data_o <= data_d;
+        nor_data_o <= nor_data_d;
+        nor_addr_o <= nor_addr_d;
+        nor_ce_o <= nor_ce_d;
+        nor_we_o <= nor_we_d;
+        nor_oe_o <= nor_oe_d;
     end
 
 endmodule
