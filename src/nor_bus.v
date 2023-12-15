@@ -120,6 +120,14 @@ module nor_bus_driver #(
     wire [DATABITS-1:0] req_next_data;
     assign { req_next_we, req_next_data, req_next_addr } = req_next_i;
 
+    // transaction chaining logic
+    // Reads may be chained. CE and OE are asserted throughout, only address changes.
+    // Writes are never chained. Reads and writes are never chained.
+    wire [ADDRBITS-1:0] req_addr_pg      = req_addr      >> 3;
+    wire [ADDRBITS-1:0] req_next_addr_pg = req_next_addr >> 3;
+    wire next_read = req_valid_i[1] && !req_next_we && !req_we;
+    wire next_read_page = next_read && (req_addr_pg == req_next_addr_pg);
+
     // local
     reg [2:0] state, next_state;
 
@@ -133,7 +141,7 @@ module nor_bus_driver #(
     localparam [COUNTERBITS-1:0] WRITE_WAIT_COUNT   = 14,
                                  READDLY_WAIT_COUNT = 28,
                                  READ_WAIT_COUNT    = 17,
-                                 READPG_WAIT_COUNT  = 7,
+                                 READPG_WAIT_COUNT  = 17, //7,
                                  END_WAIT_COUNT     = 0;
 
     // wait counter
@@ -161,11 +169,11 @@ module nor_bus_driver #(
     end
 
     always @(*) case(state)
-        NOR_IDLE:    next_state = req_valid_i[0] ? (req_we ? NOR_WRITE : NOR_READDLY) : NOR_IDLE;
+        NOR_IDLE:    next_state = req_valid_i[0] ? (req_we         ? NOR_WRITE  : NOR_READDLY) : NOR_IDLE;
         NOR_WRITE:   next_state = NOR_TXN_END;
         NOR_READDLY: next_state = NOR_READ;
-        NOR_READ:    next_state = NOR_TXN_END;
-        NOR_READPG:  next_state = NOR_TXN_END;
+        NOR_READ:    next_state = next_read      ? (next_read_page ? NOR_READPG : NOR_READ)    : NOR_TXN_END;
+        NOR_READPG:  next_state = next_read      ? (next_read_page ? NOR_READPG : NOR_READ)    : NOR_TXN_END;
         NOR_TXN_END: next_state = NOR_IDLE;
         default:     next_state = NOR_IDLE;
     endcase

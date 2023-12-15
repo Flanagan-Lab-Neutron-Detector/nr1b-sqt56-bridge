@@ -372,7 +372,7 @@ async def test_vt_enter(dut):
 
     await ClockCycles(dut.clk_i, 10)
 
-@cocotb.test(skip=True)
+@cocotb.test(skip=False)
 async def test_multi_read(dut):
     """Enter VT"""
 

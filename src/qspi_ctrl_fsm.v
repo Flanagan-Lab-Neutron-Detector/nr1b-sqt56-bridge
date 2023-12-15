@@ -180,9 +180,10 @@ module qspi_ctrl_fsm #(
 
     // Read acks go to a 16-deep FIFO. FIFO filled + pending reqs must be <= 16 or data will be lost
     reg  [4:0] pipe_inflight;
-    wire [4:0] pipe_total = pipe_fifo_filled + pipe_inflight;
+    wire [4:0] pipe_total = pipe_fifo_filled + pipe_inflight + (pipe_fifo_wr?'b1:'b0);
     wire inflight_empty = pipe_inflight == 'b0;
     wire pipeline_full = pipe_total[4];
+    wire pipeline_almost_full = &pipe_total[3:0];
 
     // track inflight requests
     wire pipe_valid_wr = wb_stb_o;
@@ -196,13 +197,19 @@ module qspi_ctrl_fsm #(
         endcase
     end
 
+    // stb control
+    reg stb, stb_d;
+    always @(*)             stb_d     = !reset_i && !wb_stall_i && wb_req;
+    always @(posedge clk_i) stb      <= stb_d;
+    always @(*)             wb_stb_o  = stb && !wb_stall_i;
+
     // write request generation
     always @(posedge clk_i) wb_write_req <= wstb_pe && (spi_state == SPI_STATE_WRITE_DATA);
 
     // read request generation
     always @(posedge clk_i) begin
         wb_read_req <= 'b0;
-        if (!pipeline_full) begin
+        if (!pipeline_full && !(pipeline_almost_full && (stb_d || wb_stb_o))) begin
             if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_STALL)) && !txnreset_sync) begin
                 wb_read_req <= 'b1;
             end else if (wstb_pe)
@@ -210,11 +217,6 @@ module qspi_ctrl_fsm #(
                 wb_read_req <= !cmd_is_write && (spi_state == SPI_STATE_ADDR);
         end
     end
-
-    // stb control
-    reg stb_d;
-    always @(posedge clk_i) stb_d <= !reset_i && !wb_stall_i && wb_req;
-    always @(*)             wb_stb_o = stb_d && !wb_stall_i;
 
     // address counter
     reg  [ADDRBITS-1:0] addr_counter;
