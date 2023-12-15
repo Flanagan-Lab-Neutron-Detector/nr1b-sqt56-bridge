@@ -77,7 +77,7 @@ module top_hx8k (
 
     assign IOB_73 = nor_we_o;
     assign IOB_74 = dbg_txndone;
-    assign IOB_87 = nor_oe_o;
+    assign IOB_87 = QSPI_SCK; // nor_oe_o;
     assign IOB_91 = nor_ce_o;
 
     //assign IOB_87 = NOR_OE;
@@ -383,7 +383,8 @@ module top_hx8k (
     } = 'b0; // nor_addr[19:16];
     assign {
         IOL_9P,  IOL_9N,  IOL_5P,  IOL_5N
-    } = { nor_addr[1], nor_addr[0], nor_dq_i[1], nor_dq_i[0] };
+    } = { qspi_io_i[3:0] };
+    //} = { nor_addr[1], nor_addr[0], nor_dq_i[1], nor_dq_i[0] };
     // dbg_txnmiso[3:0];
     // qspi_io_i[3:0];
     // { nor_dq_i[7], nor_dq_i[2:0] }

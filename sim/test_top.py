@@ -10,7 +10,8 @@ async def setup(dut):
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
-    T = 13.33 # ~75 MHz
+    #T = 13.33 # ~75 MHz
+    T = 11.90 # ~84 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
     dut.pad_spi_io_i.value = 0
