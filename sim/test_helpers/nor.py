@@ -240,6 +240,7 @@ class nor_flash_behavioral_x16:
                             await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                             await Timer(1, 'ns') # just to be sure
                             while not bus['ce'].value and not bus['oe'].value: # address changed
+                                #self.log(f"[flash] READ address changed from {last_addr:X} to {int(bus['addr'].value)}")
                                 if (bus['addr'].value >> 3) == (last_addr >> 3):
                                     await Timer(25, 'ns') # tPACC
                                 else:
