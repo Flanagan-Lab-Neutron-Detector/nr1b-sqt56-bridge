@@ -22,7 +22,8 @@ async def setup(dut):
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
-    T = 13.33 # ~75 MHz
+    #T = 13.33 # ~75 MHz
+    T = 11.90 # ~84 MHz
     #T = 11.11 # ~90 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
@@ -254,7 +255,7 @@ async def test_page_prog(dut):
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
 
-@cocotb.test(skip=True)
+@cocotb.test(skip=False)
 async def test_sequential_reads(dut):
     """Test reading a sequence of words in one transaction"""
 
@@ -327,7 +328,7 @@ async def test_sequential_reads(dut):
 
     # short stall
     task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=2, log=dut._log.info))
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=12.7, sce_pol=1, log=dut._log.info)
     for i,p in enumerate(pairs):
         _, w = p
         assert ret_val[i] == w
@@ -337,8 +338,8 @@ async def test_sequential_reads(dut):
     await Timer(100, 'ns')
 
     # no stall
-    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=0, log=dut._log.info))
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=1, log=dut._log.info))
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=12.7, sce_pol=1, log=dut._log.info)
     for i,p in enumerate(pairs):
         _, w = p
         assert ret_val[i] == w

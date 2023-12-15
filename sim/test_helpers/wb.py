@@ -173,7 +173,7 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
                 await trigger
 
         #bus['stall'].value = 1
-        bus['stall'].setimmediatevalue(1)
+        #bus['stall'].setimmediatevalue(1)
 
         #await ClockCycles(bus['clk'], 1)
 
