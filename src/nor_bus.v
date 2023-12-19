@@ -54,11 +54,6 @@ module nor_bus #(
     output reg                     nor_data_oe // 0 = input, 1 = output
 );
 
-    assign cfgwb_err_o = cfgwb_cyc_i && cfgwb_stb_i;
-    assign cfgwb_stall_o = 'b0;
-    always @(*) cfgwb_dat_o = 'b0;
-    always @(*) cfgwb_ack_o = 'b0;
-
     localparam REQBITS = MEMWBADDRBITS + MEMWBDATABITS + 1;
 
     reg cyc_read;
@@ -102,6 +97,12 @@ module nor_bus #(
         .req_i(req_data0), .req_next_i(req_data1),
         .req_valid_i(req_dv),
         .ack_o(memwb_ack_o), .data_o(memwb_dat_o), .busy_o(nor_stall),
+        // cfg wb
+        .cfgwb_rst_i(cfgwb_rst_i),
+        .cfgwb_adr_i(cfgwb_adr_i), .cfgwb_dat_i(cfgwb_dat_i),
+        .cfgwb_we_i(cfgwb_we_i), .cfgwb_stb_i(cfgwb_stb_i), .cfgwb_cyc_i(cfgwb_cyc_i),
+        .cfgwb_err_o(cfgwb_err_o), .cfgwb_ack_o(cfgwb_ack_o), .cfgwb_stall_o(cfgwb_stall_o),
+        .cfgwb_dat_o(cfgwb_dat_o),
         // nor
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i), .nor_data_o(nor_data_o),
         .nor_addr_o(nor_addr_o), .nor_ce_o(nor_ce_o), .nor_we_o(nor_we_o),
@@ -126,6 +127,18 @@ module nor_bus_driver #(
     output reg [MEMWBDATABITS-1:0] data_o,
     output reg                     busy_o,
 
+    // cfg wishbone interface
+    input                          cfgwb_rst_i,
+    input      [CFGWBADDRBITS-1:0] cfgwb_adr_i,
+    input      [CFGWBDATABITS-1:0] cfgwb_dat_i,
+    input                          cfgwb_we_i,
+    input                          cfgwb_stb_i,
+    input                          cfgwb_cyc_i,
+    output reg                     cfgwb_err_o,
+    output reg                     cfgwb_ack_o,
+    output reg [CFGWBDATABITS-1:0] cfgwb_dat_o,
+    output reg                     cfgwb_stall_o,
+
     // NOR interface
     input                          nor_ry_i,
     input      [MEMWBDATABITS-1:0] nor_data_i,
@@ -137,9 +150,55 @@ module nor_bus_driver #(
     output reg                     nor_data_oe // 0 = input, 1 = output
 );
 
-    localparam REQBITS = MEMWBADDRBITS + MEMWBDATABITS + 1;
+    // registers
+    reg [`CFGWBDATABITS-1:0] r_nbusctrl;
+    reg [`CFGWBDATABITS-1:0] r_nbuswait0;
+    reg [`CFGWBDATABITS-1:0] r_nbuswait1;
+    // register bits
+    wire       r_nbusctrl_pgen          = (r_nbusctrl  & `R_NBUSCTRL_PGEN_MASK)          >> `R_NBUSCTRL_PGEN_SHIFT;
+    wire [7:0] r_nbuswait0_write_wait   = (r_nbuswait0 & `R_NBUSWAIT0_WRITE_WAIT_MASK)   >> `R_NBUSWAIT0_WRITE_WAIT_SHIFT;
+    wire [7:0] r_nbuswait0_readdly_wait = (r_nbuswait0 & `R_NBUSWAIT0_READDLY_WAIT_MASK) >> `R_NBUSWAIT0_READDLY_WAIT_SHIFT;
+    wire [7:0] r_nbuswait1_read_wait    = (r_nbuswait1 & `R_NBUSWAIT1_READ_WAIT_MASK)    >> `R_NBUSWAIT1_READ_WAIT_SHIFT;
+    wire [7:0] r_nbuswait1_readpg_wait  = (r_nbuswait1 & `R_NBUSWAIT1_READPG_WAIT_MASK)  >> `R_NBUSWAIT1_READPG_WAIT_SHIFT;
+    // cfg read/write
+    wire [`CFGWBADDRBITS-1:0] cfgwb_adr_mod = cfgwb_adr_i & `CFGWBMODMASK;
+    always @(posedge clk_i) begin
+        cfgwb_ack_o   <= 'b0;
+        cfgwb_dat_o   <= 'b0;
+        cfgwb_stall_o <= 'b0;
+        if (cfgwb_rst_i) begin
+            // regs
+            r_nbusctrl  <= `R_NBUSCTRL_RST_VAL;
+            r_nbuswait0 <= `R_NBUSWAIT0_RST_VAL;
+            r_nbuswait1 <= `R_NBUSWAIT1_RST_VAL;
+            // wb
+            cfgwb_err_o <= 'b0;
+        end if (cfgwb_cyc_i && cfgwb_stb_i) begin
+            if (cfgwb_adr_mod == `NBUSADDRBASE) begin
+                cfgwb_ack_o <= 'b1;
+                if (cfgwb_we_i) begin
+                    case (cfgwb_adr_i)
+                        `R_NBUSCTRL:  r_nbusctrl  <= cfgwb_dat_i;
+                        `R_NBUSWAIT0: r_nbuswait0 <= cfgwb_dat_i;
+                        `R_NBUSWAIT1: r_nbuswait1 <= cfgwb_dat_i;
+                        default:      cfgwb_err_o <= 'b1;
+                    endcase
+                end else begin
+                    case (cfgwb_adr_i)
+                        `R_NBUSCTRL:  cfgwb_dat_o <= r_nbusctrl;
+                        `R_NBUSWAIT0: cfgwb_dat_o <= r_nbuswait0;
+                        `R_NBUSWAIT1: cfgwb_dat_o <= r_nbuswait1;
+                        default:      cfgwb_err_o <= 'b1;
+                    endcase
+                end
+            end else begin
+                cfgwb_err_o <= 'b1;
+            end
+        end
+    end
 
     // unpack reqs
+    localparam REQBITS = MEMWBADDRBITS + MEMWBDATABITS + 1;
     wire                     req_we;
     wire [MEMWBADDRBITS-1:0] req_addr;
     wire [MEMWBDATABITS-1:0] req_data;
@@ -167,11 +226,7 @@ module nor_bus_driver #(
                      NOR_READPG  = 3'b100,
                      NOR_TXN_END = 3'b101;
 
-    localparam [COUNTERBITS-1:0] WRITE_WAIT_COUNT   = 14,
-                                 READDLY_WAIT_COUNT = 79, //28,
-                                 READ_WAIT_COUNT    = 21, //17,
-                                 READPG_WAIT_COUNT  = 17, //17, //7,
-                                 END_WAIT_COUNT     = 0;
+    localparam [COUNTERBITS-1:0] END_WAIT_COUNT   = 0;
 
     // wait counter
     reg [COUNTERBITS-1:0] counter;
@@ -188,10 +243,10 @@ module nor_bus_driver #(
     always @(*) begin
         counter_stb = 'b1;
         if (busy_o) case(state)
-            NOR_WRITE:   counter_stb = counter == WRITE_WAIT_COUNT;
-            NOR_READDLY: counter_stb = counter == READDLY_WAIT_COUNT;
-            NOR_READ:    counter_stb = counter == READ_WAIT_COUNT;
-            NOR_READPG:  counter_stb = counter == READPG_WAIT_COUNT;
+            NOR_WRITE:   counter_stb = counter == r_nbuswait0_write_wait;
+            NOR_READDLY: counter_stb = counter == r_nbuswait0_readdly_wait;
+            NOR_READ:    counter_stb = counter == r_nbuswait1_read_wait;
+            NOR_READPG:  counter_stb = counter == r_nbuswait1_readpg_wait;
             NOR_TXN_END: counter_stb = counter == END_WAIT_COUNT;
             default:     counter_stb = 'b1;
         endcase

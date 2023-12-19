@@ -407,3 +407,53 @@ async def test_multi_read(dut):
         assert w == exp, f"Word {i} = {w}, expected {exp}"
 
     await ClockCycles(dut.clk_i, 10)
+
+@cocotb.test(skip=False)
+async def test_nor_cfg_wait(dut):
+    """Read/write nor wait registers"""
+
+    await setup(dut)
+
+    nor_bus = {
+            'ce': dut.nor_ce_o,
+            'oe': dut.nor_oe_o,
+            'we': dut.nor_we_o,
+           'doe': dut.nor_data_oe,
+          'addr': dut.nor_addr_o,
+        'data_o': dut.nor_data_o,
+        'data_i': dut.nor_data_i,
+            'ry': dut.nor_ry_i
+    }
+
+    model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+
+    # start nor state machine
+    nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
+    await ClockCycles(dut.clk_i, 1)
+
+    # pre program a word
+    addr = 1024*64 * 7
+    value = 0xABCD
+    model.mem.program(addr, value)
+
+    # reduce wait times to see garbage
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000101, 0x0202, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000102, 0x0202, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+
+    ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, addr, 1, freq=spi_freq)
+    assert ret_val[0] == 0
+
+    # restore wait times
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000101, 0x4F0E, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000102, 0x1115, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+
+    ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, addr, 1, freq=spi_freq)
+    assert ret_val[0] == value
+
+    nor_task.kill()

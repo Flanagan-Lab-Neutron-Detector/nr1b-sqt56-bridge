@@ -17,8 +17,15 @@ async def setup(dut):
     dut.memwb_stall_i.value = 0
     dut.memwb_ack_i.value = 0
     dut.memwb_dat_i.value = 0
-    dut.memwb_adr_o.value = 0
-    dut.memwb_dat_o.value = 0
+    #dut.memwb_adr_o.value = 0
+    #dut.memwb_dat_o.value = 0
+    dut.cfgwb_ack_i.value = 0
+    dut.cfgwb_stall_i.value = 0
+    dut.cfgwb_ack_i.value = 0
+    dut.cfgwb_dat_i.value = 0
+    dut.cfgwb_err_i.value = 0
+    #dut.cfgwb_adr_o.value = 0
+    #dut.cfgwb_dat_o.value = 0
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
@@ -383,3 +390,54 @@ async def test_fast_read_mc(dut):
 
     await ClockCycles(dut.clk_i, 1)
 
+@cocotb.test()
+async def test_cfg_passthrough(dut):
+    """Test CFG WB bus"""
+
+    await setup(dut)
+
+    memwb = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
+    }
+
+    cfgwb = {
+          'clk': dut.clk_i,
+          'rst': dut.cfgwb_rst_o,
+          'cyc': dut.cfgwb_cyc_o,
+          'stb': dut.cfgwb_stb_o,
+           'we': dut.cfgwb_we_o,
+          'adr': dut.cfgwb_adr_o,
+        'dat_o': dut.cfgwb_dat_i,
+        'stall': dut.cfgwb_stall_i,
+          'ack': dut.cfgwb_ack_i,
+        'dat_i': dut.cfgwb_dat_o
+    }
+
+    regs = [(0x0100, 0x0001), (0x0101, 0x0002), (0x0102, 0x0003)]
+
+    task = cocotb.start_soon(wb.slave_read_multi_expect(cfgwb, regs, timeout=2000*len(regs), stall_cycles=1, log=dut._log.info))
+    for a,d in regs:
+        a = a | 0x80000000
+        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, a, 1, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+        assert ret_val[0] == d
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(cfgwb, regs, timeout=10000, stall_cycles=4, log=dut._log.info))
+    # send erase sequence
+    for a,d in regs:
+        a = a | 0x80000000
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)

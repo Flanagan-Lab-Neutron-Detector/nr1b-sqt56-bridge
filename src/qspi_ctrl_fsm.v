@@ -27,7 +27,7 @@ module qspi_ctrl_fsm #(
     // data inputs
     output     [CYCLE_COUNT_BITS-1:0] txnbc_o,   // transaction bit count
     output                            txndir_o,  // transaction direction, 0 = read, 1 = write
-    output reg       [IOREG_BITS-1:0] txndata_o,
+    output           [IOREG_BITS-1:0] txndata_o,
     input            [IOREG_BITS-1:0] txndata_i,
     input                             txndone_i, // high for one cycle when data has been received
     input                             txnreset_i, // transaction reset (CE high)
@@ -50,23 +50,16 @@ module qspi_ctrl_fsm #(
 
     // cfg wishbone
     output                            cfgwb_rst_o,
-    output        [CFGWBADDRBITS-1:0] cfgwb_adr_o,
-    output        [CFGWBDATABITS-1:0] cfgwb_dat_o,
-    output                            cfgwb_we_o,
-    output                            cfgwb_stb_o,
-    output                            cfgwb_cyc_o,
+    output reg    [CFGWBADDRBITS-1:0] cfgwb_adr_o,
+    output reg    [CFGWBDATABITS-1:0] cfgwb_dat_o,
+    output reg                        cfgwb_we_o,
+    output reg                        cfgwb_stb_o, // TODO: one stb per peripheral
+    output reg                        cfgwb_cyc_o,
     input                             cfgwb_err_i,
     input                             cfgwb_ack_i,
     input         [CFGWBDATABITS-1:0] cfgwb_dat_i,
     input                             cfgwb_stall_i
 );
-
-    assign cfgwb_rst_o = 'b0;
-    assign cfgwb_adr_o = 'b0;
-    assign cfgwb_dat_o = 'b0;
-    assign cfgwb_we_o  = 'b0;
-    assign cfgwb_stb_o = 'b0;
-    assign cfgwb_cyc_o = 'b0;
 
     // Currently all commands are 8-bit, 1-lane
     // All other phases are N-bit 4-lane (quad)
@@ -98,6 +91,7 @@ module qspi_ctrl_fsm #(
     // latched command words
     reg     [SPICMDBITS-1:0] cmd_q;
     wire [MEMWBADDRBITS-1:0] addr_q;
+    wire [SPIADDRBITS-MEMWBADDRBITS-1:0] addr_ctrl_q;
     reg  [MEMWBDATABITS-1:0] data_q;
 
     // { [CYCLE_COUNT_BITS+1-1:3]=bit_count, [0]=dir }
@@ -177,9 +171,66 @@ module qspi_ctrl_fsm #(
                 vt_mode <= 1'b0;
         end
 
+    // address counter
+    reg  [SPIADDRBITS-1:0] addr_counter;
+    wire [SPIADDRBITS-1:0] addr_reset = 'b0;
+    wire [SPIADDRBITS-1:0] addr_latch_val = txndata_i;
+    wire addr_latch = wstb_pe && (spi_state == SPI_STATE_ADDR);
+    wire addr_inc   = memwb_stb_o;
+    always @(posedge clk_i)
+        if (reset_i)         addr_counter <= addr_reset;
+        else if (addr_latch) addr_counter <= addr_latch_val;
+        else if (addr_inc)   addr_counter <= addr_counter + 'b1;
+    assign addr_q = addr_counter[MEMWBADDRBITS-1:0];
+    assign addr_ctrl_q = addr_counter[SPIADDRBITS-1:MEMWBADDRBITS];
+
     // (wb) read/write request generation
 
-    // wb control
+    // memwb / cfgwb routing
+    wire bus_is_cfg = addr_latch ? txndata_i[SPIADDRBITS-1] : addr_ctrl_q[SPIADDRBITS-MEMWBADDRBITS-1];
+    reg  [CFGWBDATABITS-1:0] cfgwb_dat_q;
+    reg  [MEMWBDATABITS-1:0] pipe_fifo_rd_data;
+    assign txndata_o[IOREG_BITS-1:MEMWBDATABITS] = 'b0;
+    assign txndata_o[MEMWBDATABITS-1:0] = bus_is_cfg ? cfgwb_dat_q : pipe_fifo_rd_data;
+
+    // cfgwb control
+    assign cfgwb_rst_o = reset_i;
+    reg cfg_req_read, cfg_req_write;
+    always @(posedge clk_i) begin
+        cfg_req_read  <= 'b0;
+        cfg_req_write <= 'b0;
+        if (!cfgwb_cyc_o && !cfgwb_stall_i && wstb_pe) begin
+            cfg_req_read  <= !cmd_is_write && (spi_state == SPI_STATE_ADDR);
+            cfg_req_write <=  cmd_is_write && (spi_state == SPI_STATE_WRITE_DATA);
+        end
+    end
+    always @(posedge clk_i) begin
+        cfgwb_adr_o <= 'b0;
+        cfgwb_dat_o <= 'b0;
+        cfgwb_we_o  <= 'b0;
+        cfgwb_stb_o <= 'b0;
+        if (cfgwb_rst_o || cfgwb_err_i) begin
+            cfgwb_cyc_o <= 'b0;
+            cfgwb_dat_q <= 'b0;
+        end else if (bus_is_cfg) begin
+            if (!cfgwb_cyc_o && !cfgwb_stall_i && (cfg_req_read || cfg_req_write)) begin
+                cfgwb_cyc_o <= 'b1;
+                cfgwb_stb_o <= 'b1;
+                cfgwb_adr_o <= addr_q[CFGWBADDRBITS-1:0];
+                if (cfg_req_write) begin
+                    cfgwb_dat_o <= data_q[CFGWBDATABITS-1:0];
+                    cfgwb_we_o  <= 'b1;
+                end else if (cfg_req_read) begin
+                    cfgwb_we_o  <= 'b0;
+                end
+            end else if (cfgwb_cyc_o && cfgwb_ack_i) begin
+                cfgwb_cyc_o <= 'b0;
+                cfgwb_dat_q <= cfgwb_dat_i;
+            end
+        end
+    end
+
+    // memwb control
     reg memwb_write_req, memwb_read_req, memwb_req;
     always @(*) memwb_req = memwb_write_req || memwb_read_req;
     // write direction
@@ -193,13 +244,12 @@ module qspi_ctrl_fsm #(
     reg  pipe_fifo_wr;
     wire pipe_fifo_rd;
     reg  [MEMWBDATABITS-1:0] pipe_fifo_wr_data;
-    //wire [DATABITS-1:0] pipe_fifo_rd_data;
     fsfifo #(.WIDTH(MEMWBDATABITS), .DEPTH(16)) pipe_fifo (
         .clk_i(clk_i), .reset_i(spi_reset),
         .full_o(pipe_fifo_full), .empty_o(pipe_fifo_empty),
         .filled_o(pipe_fifo_filled),
         .wr_i(pipe_fifo_wr), .wr_data_i(pipe_fifo_wr_data),
-        .rd_i(pipe_fifo_rd), .rd_data_o(txndata_o[MEMWBDATABITS-1:0])
+        .rd_i(pipe_fifo_rd), .rd_data_o(pipe_fifo_rd_data)
     );
 
     assign pipe_fifo_rd = wstb_pe;
@@ -230,12 +280,12 @@ module qspi_ctrl_fsm #(
     always @(*)             memwb_stb_o  = stb && !memwb_stall_i;
 
     // write request generation
-    always @(posedge clk_i) memwb_write_req <= wstb_pe && (spi_state == SPI_STATE_WRITE_DATA);
+    always @(posedge clk_i) memwb_write_req <= !bus_is_cfg && wstb_pe && (spi_state == SPI_STATE_WRITE_DATA);
 
     // read request generation
     always @(posedge clk_i) begin
         memwb_read_req <= 'b0;
-        if (!pipeline_full && !(pipeline_almost_full && (stb_d || memwb_stb_o))) begin
+        if (!bus_is_cfg && !pipeline_full && !(pipeline_almost_full && (stb_d || memwb_stb_o))) begin
             if (!cmd_is_write && ((spi_state == SPI_STATE_READ_DATA) || (spi_state == SPI_STATE_STALL)) && !txnreset_sync) begin
                 memwb_read_req <= 'b1;
             end else if (wstb_pe)
@@ -244,23 +294,10 @@ module qspi_ctrl_fsm #(
         end
     end
 
-    // address counter
-    reg  [MEMWBADDRBITS-1:0] addr_counter;
-    wire [MEMWBADDRBITS-1:0] addr_reset = 'b0;
-    wire [MEMWBADDRBITS-1:0] addr_latch_val = txndata_i[MEMWBADDRBITS-1:0];
-    wire addr_latch = wstb_pe && (spi_state == SPI_STATE_ADDR);
-    wire addr_inc   = memwb_stb_o;
-    always @(posedge clk_i)
-        if (reset_i)         addr_counter <= addr_reset;
-        else if (addr_latch) addr_counter <= addr_latch_val;
-        else if (addr_inc)   addr_counter <= addr_counter + 'b1;
-    assign addr_q = addr_counter;
-
     // Wishbone control
 
     always @(*) memwb_adr_o = addr_q;
     always @(posedge clk_i) begin
-        txndata_o[IOREG_BITS-1:MEMWBDATABITS] <= 'b0;
         pipe_fifo_wr      <= 'b0;
         pipe_fifo_wr_data <= 'b0;
         memwb_we_o           <= 'b0;

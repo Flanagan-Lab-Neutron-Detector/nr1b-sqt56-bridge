@@ -8,7 +8,8 @@ async def setup(dut):
     """Prepare DUT for test"""
 
     #T = 15.15 # ~66 MHz
-    T = 13.33 # ~75 MHz
+    #T = 13.33 # ~75 MHz
+    T = 11.9 # ~84 MHz
     cocotb.start_soon(Clock(dut.clk_i, 13.33, units="ns").start())
 
     dut.memwb_cyc_i.value = 0
@@ -16,12 +17,19 @@ async def setup(dut):
     dut.memwb_we_i.value = 0
     dut.memwb_adr_i.value = 0
     dut.memwb_dat_i.value = 0
+    dut.cfgwb_adr_i.value = 0
+    dut.cfgwb_dat_i.value = 0
+    dut.cfgwb_we_i.value = 0
+    dut.cfgwb_stb_i.value = 0
+    dut.cfgwb_cyc_i.value = 0
     dut.nor_ry_i.value = 1
 
     #dut._log.info("reset")
     dut.rst_i.value = 1
+    dut.cfgwb_rst_i.value = 1
     await ClockCycles(dut.clk_i, 4)
     dut.rst_i.value = 0
+    dut.cfgwb_rst_i.value = 0
 
     assert dut.nor_data_oe.value == 0
     assert dut.memwb_ack_o.value == 0
@@ -169,3 +177,100 @@ async def test_pipeline(dut):
         assert int(ad[1]) == i + 1
 
     await ClockCycles(dut.clk_i, 10)
+
+@cocotb.test()
+async def test_cfg_read(dut):
+    """Read cfg registers"""
+
+    await setup(dut)
+
+    memwb = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
+    }
+
+    cfgwb = {
+          'clk': dut.clk_i,
+          'rst': dut.cfgwb_rst_i,
+          'cyc': dut.cfgwb_cyc_i,
+          'stb': dut.cfgwb_stb_i,
+           'we': dut.cfgwb_we_i,
+          'adr': dut.cfgwb_adr_i,
+        'dat_i': dut.cfgwb_dat_i,
+        'stall': dut.cfgwb_stall_o,
+          'ack': dut.cfgwb_ack_o,
+        'dat_o': dut.cfgwb_dat_o
+    }
+
+    await ClockCycles(dut.clk_i, 1)
+
+    reg_def = [
+        # (register addr, default value)
+        (0x0100, 0x0001), # R_NBUSCTRL
+        (0x0101, 0x4F0E), # R_NBUSWAIT0
+        (0x0102, 0x1115), # R_NBUSWAIT1
+    ]
+
+    for a,d in reg_def:
+        read_val = await wb.read(cfgwb, a)
+        assert read_val == d, f"Reg {a:04X} = {int(read_val):04X} (expected {d:04X})"
+        await ClockCycles(dut.clk_i, 1)
+
+@cocotb.test()
+async def test_cfg_write(dut):
+    """Read cfg registers"""
+
+    await setup(dut)
+
+    memwb = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
+    }
+
+    cfgwb = {
+          'clk': dut.clk_i,
+          'rst': dut.cfgwb_rst_i,
+          'cyc': dut.cfgwb_cyc_i,
+          'stb': dut.cfgwb_stb_i,
+           'we': dut.cfgwb_we_i,
+          'adr': dut.cfgwb_adr_i,
+        'dat_i': dut.cfgwb_dat_i,
+        'stall': dut.cfgwb_stall_o,
+          'ack': dut.cfgwb_ack_o,
+        'dat_o': dut.cfgwb_dat_o
+    }
+
+    await ClockCycles(dut.clk_i, 1)
+
+    reg_val = [
+        # (register addr, write value)
+        (0x0100, 0xFEDC), # R_NBUSCTRL
+        (0x0101, 0x2011), # R_NBUSWAIT0
+        (0x0102, 0x1410), # R_NBUSWAIT1
+    ]
+
+    for a,d in reg_val:
+        await wb.write(cfgwb, a, d)
+        await ClockCycles(dut.clk_i, 1)
+
+    for a,d in reg_val:
+        read_val = await wb.read(cfgwb, a)
+        assert read_val == d, f"Reg {a:04X} = {int(read_val):04X} (expected {d:04X})"
+        await ClockCycles(dut.clk_i, 1)
+
