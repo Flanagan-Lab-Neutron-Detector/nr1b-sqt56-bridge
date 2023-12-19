@@ -8,6 +8,7 @@ BUILDDIR ?= $(PWD)/build
 TOP ?= top_hx8k
 V_SRC = \
 	$(SRCDIR)/cmd_defs.vh \
+	$(SRCDIR)/busmap.vh \
 	$(SRCDIR)/pll.v \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \

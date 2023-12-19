@@ -13,12 +13,12 @@ async def setup(dut):
     dut.sck_i.value = 0
     dut.sce_i.value = 0
     dut.sio_i.value = 0
-    dut.wb_ack_i.value = 0
-    dut.wb_stall_i.value = 0
-    dut.wb_ack_i.value = 0
-    dut.wb_dat_i.value = 0
-    dut.wb_adr_o.value = 0
-    dut.wb_dat_o.value = 0
+    dut.memwb_ack_i.value = 0
+    dut.memwb_stall_i.value = 0
+    dut.memwb_ack_i.value = 0
+    dut.memwb_dat_i.value = 0
+    dut.memwb_adr_o.value = 0
+    dut.memwb_dat_o.value = 0
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
@@ -40,14 +40,14 @@ async def test_fast_read(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
 
@@ -66,14 +66,14 @@ async def test_slow_read(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=10000, stall_cycles=2, log=dut._log.info))
@@ -93,14 +93,14 @@ async def test_cmd_execution(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     sa = 0x50000
@@ -136,14 +136,14 @@ async def test_clock_rate(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     # Frequency range in MHz
@@ -177,14 +177,14 @@ async def test_prog_word(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     addr = 0x30000
@@ -219,14 +219,14 @@ async def test_page_prog(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     progwords = [
@@ -264,14 +264,14 @@ async def test_sequential_reads(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     pairs = [
@@ -355,14 +355,14 @@ async def test_fast_read_mc(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     # stop dump

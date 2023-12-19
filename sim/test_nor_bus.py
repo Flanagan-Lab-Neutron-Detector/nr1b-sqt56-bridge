@@ -4,11 +4,11 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Join
 from test_helpers import wb
 
-async def wb_read_double(dut, addr1: int, addr2: int, after_cycles=1, indata1=None, indata2=None) -> Tuple[int,int]:
-    if dut.wb_cyc_i.value:
+async def memwb_read_double(dut, addr1: int, addr2: int, after_cycles=1, indata1=None, indata2=None) -> Tuple[int,int]:
+    if dut.memwb_cyc_i.value:
         raise Exception("Transaction already in progress")
-    if dut.wb_stall_o.value:
-        await FallingEdge(dut.wb_stall_o)
+    if dut.memwb_stall_o.value:
+        await FallingEdge(dut.memwb_stall_o)
         await ClockCycles(dut.clk_i, 1)
 
     # To avoid affecting earlier transactions, only change nor_data_i on
@@ -16,29 +16,29 @@ async def wb_read_double(dut, addr1: int, addr2: int, after_cycles=1, indata1=No
     # change the bus request earlier
 
     # initiate cycle: cyc high, stb high, we low, assert address
-    dut.wb_adr_i.value = addr1
-    dut.wb_cyc_i.setimmediatevalue(1)
-    dut.wb_stb_i.setimmediatevalue(1)
-    dut.wb_we_i.value = 0
+    dut.memwb_adr_i.value = addr1
+    dut.memwb_cyc_i.setimmediatevalue(1)
+    dut.memwb_stb_i.setimmediatevalue(1)
+    dut.memwb_we_i.value = 0
     if indata1 is not None:
         dut.nor_data_i.value = indata1
     await ClockCycles(dut.clk_i, 2)
 
     await ClockCycles(dut.clk_i, after_cycles)
     # set up second transaction
-    dut.wb_adr_i.value = addr2
+    dut.memwb_adr_i.value = addr2
 
-    await RisingEdge(dut.wb_ack_o)
-    ret1 = dut.wb_dat_o.value
+    await RisingEdge(dut.memwb_ack_o)
+    ret1 = dut.memwb_dat_o.value
     # now we can change the data
     if indata2 is not None:
         dut.nor_data_i.value = indata2
 
-    await RisingEdge(dut.wb_ack_o)
-    ret2 = dut.wb_dat_o.value
+    await RisingEdge(dut.memwb_ack_o)
+    ret2 = dut.memwb_dat_o.value
 
-    dut.wb_cyc_i.setimmediatevalue(0)
-    dut.wb_stb_i.setimmediatevalue(0)
+    dut.memwb_cyc_i.setimmediatevalue(0)
+    dut.memwb_stb_i.setimmediatevalue(0)
 
     return ret1, ret2
 
@@ -49,11 +49,11 @@ async def setup(dut):
     T = 13.33 # ~75 MHz
     cocotb.start_soon(Clock(dut.clk_i, 13.33, units="ns").start())
 
-    dut.wb_cyc_i.value = 0
-    dut.wb_stb_i.value = 0
-    dut.wb_we_i.value = 0
-    dut.wb_adr_i.value = 0
-    dut.wb_dat_i.value = 0
+    dut.memwb_cyc_i.value = 0
+    dut.memwb_stb_i.value = 0
+    dut.memwb_we_i.value = 0
+    dut.memwb_adr_i.value = 0
+    dut.memwb_dat_i.value = 0
     dut.nor_ry_i.value = 1
 
     #dut._log.info("reset")
@@ -62,8 +62,8 @@ async def setup(dut):
     dut.rst_i.value = 0
 
     assert dut.nor_data_oe.value == 0
-    assert dut.wb_ack_o.value == 0
-    assert dut.wb_stall_o.value == 0
+    assert dut.memwb_ack_o.value == 0
+    assert dut.memwb_stall_o.value == 0
 
     await ClockCycles(dut.clk_i, 1)
 
@@ -76,14 +76,14 @@ async def test_normal_read(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     # test some normal reads
@@ -117,21 +117,21 @@ async def test_aborted_read(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     # test aborted read
     await wb.read_abort(bus, 100, after_cycles=1)
     await ClockCycles(dut.clk_i, 2)
-    assert dut.wb_ack_o.value == 0
-    assert dut.wb_stall_o.value == 0
+    assert dut.memwb_ack_o.value == 0
+    assert dut.memwb_stall_o.value == 0
     assert dut.nor_ce_o.value == 1
     assert dut.nor_we_o.value == 1
     assert dut.nor_oe_o.value == 1
@@ -151,19 +151,19 @@ async def test_second_request(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     # test second request while first request being processed
     # TODO: pipelining
-    r1, r2 = await wb_read_double(dut, 1, 2, after_cycles=1, indata1=0x8020, indata2=0x4571)
+    r1, r2 = await memwb_read_double(dut, 1, 2, after_cycles=1, indata1=0x8020, indata2=0x4571)
     assert r1 == 0x8020
     assert r2 == 0x4571
     await ClockCycles(dut.clk_i, 1)
@@ -177,14 +177,14 @@ async def test_stall(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     async def set_signal_delay(signal, value, delay_cycles):
@@ -217,14 +217,14 @@ async def test_write(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     await wb.write(bus, 0x3F0F0, 0x9876)
@@ -242,14 +242,14 @@ async def test_pipeline(dut):
     bus = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_i,
-          'stb': dut.wb_stb_i,
-           'we': dut.wb_we_i,
-          'adr': dut.wb_adr_i,
-        'dat_i': dut.wb_dat_i,
-        'stall': dut.wb_stall_o,
-          'ack': dut.wb_ack_o,
-        'dat_o': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_i,
+          'stb': dut.memwb_stb_i,
+           'we': dut.memwb_we_i,
+          'adr': dut.memwb_adr_i,
+        'dat_i': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_o,
+          'ack': dut.memwb_ack_o,
+        'dat_o': dut.memwb_dat_o
     }
 
     addrs = [1, 2, 100, 1351, 38510]
