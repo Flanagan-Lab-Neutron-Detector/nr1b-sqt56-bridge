@@ -42,6 +42,7 @@ async def multi_read(bus: dict, addrs: Iterator[int], timeout=0, log=lambda a: N
     async def send_reads(clk, stall, stb, adr, addrs: Iterator[int]) -> List[int]:
         addr_ret = []
         for a in addrs:
+            await FallingEdge(clk) # wait for stall to settle
             addr_ret.append(a) # keep a record
             if stall.value:
                 log("[multi_read.send_reads] awaiting end of stall")
