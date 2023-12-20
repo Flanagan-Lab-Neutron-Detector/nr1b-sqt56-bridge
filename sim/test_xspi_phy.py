@@ -424,10 +424,21 @@ async def test_cfg_passthrough(dut):
 
     regs = [(0x0100, 0x0001), (0x0101, 0x0002), (0x0102, 0x0003)]
 
+    # fast read
     task = cocotb.start_soon(wb.slave_read_multi_expect(cfgwb, regs, timeout=2000*len(regs), stall_cycles=1, log=dut._log.info))
     for a,d in regs:
         a = a | 0x80000000
         ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, a, 1, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+        assert ret_val[0] == d
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
+
+    # slow read
+    task = cocotb.start_soon(wb.slave_read_multi_expect(cfgwb, regs, timeout=2000*len(regs), stall_cycles=1, log=dut._log.info))
+    for a,d in regs:
+        a = a | 0x80000000
+        ret_val = await qspi.read_slow(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, a, 1, freq=6, sce_pol=1, log=dut._log.info)
         await Timer(100, 'ns')
         assert ret_val[0] == d
     await ClockCycles(dut.clk_i, 1)
