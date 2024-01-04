@@ -232,13 +232,12 @@ module nor_bus_driver #(
     reg [COUNTERBITS-1:0] counter;
     reg                   counter_rst;
     reg                   counter_stb;
-    // counter
-    always @(posedge clk_i)
-        if (rst_i || counter_rst)
-            counter <= 'b0;
-        else
-            counter <= counter + 1'b1;
     always @(posedge clk_i) counter_rst <= counter_stb;
+    upcounter #(.BITS(COUNTERBITS)) wait_counter (
+        .i_clk(clk_i), .i_rst(rst_i),
+        .i_load(counter_rst), .i_en(1'b1),
+        .i_load_val('b0), .o_count(counter)
+    );
     // counter strobe
     always @(*) begin
         counter_stb = 'b1;
