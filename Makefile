@@ -8,15 +8,16 @@ BUILDDIR ?= $(PWD)/build
 TOP ?= top_hx8k
 V_SRC = \
 	$(SRCDIR)/cmd_defs.vh \
+	$(SRCDIR)/busmap.vh \
 	$(SRCDIR)/pll.v \
 	$(SRCDIR)/top_hx8k.v \
 	$(SRCDIR)/top.v \
 	$(SRCDIR)/nor_bus.v \
 	$(SRCDIR)/xspi_phy.v \
 	$(SRCDIR)/qspi_ctrl_fsm.v \
-	$(SRCDIR)/wb_nor_controller.v \
 	$(SRCDIR)/fsfifo.v \
-	$(SRCDIR)/sync2.v
+	$(SRCDIR)/sync2.v \
+	$(SRCDIR)/queue2.v
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
 
@@ -27,7 +28,7 @@ export SYN_TOP # expose to synth_gl.tcl
 PIN_DEF ?= $(SRCDIR)/pins.pcf
 DEVICE ?= hx8k
 PACKAGE ?= cb132
-FREQ ?= 75
+FREQ ?= 84
 
 # yosys
 V_DEFS ?= -DSYNTH_ICE40
@@ -74,16 +75,16 @@ $(BUILDDIR):
 $(OUT_BIN): $(OUT_RPT)
 	icepack $(OUT_ASC) $(OUT_BIN)
 
-$(OUT_ASC): $(PIN_DEF) $(OUT_JSON) $(BUILDDIR)
+$(OUT_ASC): $(PIN_DEF) $(OUT_JSON)
 	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(FREQ) --asc $(OUT_ASC) --pcf $(PIN_DEF) --json $(OUT_JSON) --report $(OUT_REPORT_JSON) --sdf $(OUT_SDF) $(NEXTPNR_EXPERIMENTAL) $(NEXTPNR_SEED)
 
-$(OUT_JSON): $(V_SRC) $(BUILDDIR)
+$(OUT_JSON): $(V_SRC) | $(BUILDDIR)
 	yosys -q -e '' -c synth.tcl
 
-$(OUT_SYN_JSON): $(V_SRC) $(BUILDDIR)
+$(OUT_SYN_JSON): $(V_SRC) | $(BUILDDIR)
 	yosys -q -e '' -c synth_gl.tcl
 
-$(OUT_RPT): $(OUT_ASC) $(BUILDDIR)
+$(OUT_RPT): $(OUT_ASC)
 	icetime -d $(DEVICE) -m -r $(OUT_RPT) $(OUT_ASC)
 #icetime -d $(DEVICE) -m -c $(FREQ) -r $(OUT_RPT) $(OUT_ASC)
 

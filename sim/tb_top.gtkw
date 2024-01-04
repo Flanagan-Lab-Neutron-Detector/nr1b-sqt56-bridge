@@ -1,16 +1,17 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Tue Sep 12 17:36:09 2023
+[*] Wed Dec  6 20:08:56 2023
 [*]
-[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top.vcd"
-[dumpfile_mtime] "Tue Sep 12 17:34:02 2023"
-[dumpfile_size] 296233
-[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_top.gtkw"
+[dumpfile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top.vcd"
+[dumpfile_mtime] "Wed Dec  6 20:06:26 2023"
+[dumpfile_size] 225492
+[savefile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top.gtkw"
 [timestart] 0
 [size] 1340 761
 [pos] -1 -1
 *-19.450764 720250 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_top.
+[treeopen] tb_top.top.
 [sst_width] 297
 [signals_width] 169
 [sst_expanded] 1
@@ -24,8 +25,8 @@ tb_top.clk_i
 tb_top.pad_spi_sce_i
 tb_top.pad_spi_sck_i
 @22
-tb_top.pad_spi_io_i[7:0]
-tb_top.pad_spi_io_o[7:0]
+tb_top.top.pad_spi_io_i[3:0]
+tb_top.top.pad_spi_io_o[3:0]
 @28
 tb_top.pad_spi_io_oe
 @200
@@ -38,7 +39,7 @@ tb_top.nor_ry_i
 @22
 tb_top.nor_addr_o[25:0]
 tb_top.nor_data_o[15:0]
-@29
+@28
 tb_top.nor_data_oe
 @22
 tb_top.nor_data_i[15:0]

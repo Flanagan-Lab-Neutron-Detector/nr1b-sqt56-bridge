@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Thu Dec 14 17:38:06 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top.vcd"
+[dumpfile_mtime] "Thu Dec 14 17:29:54 2023"
+[dumpfile_size] 162756
+[savefile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top_queue.gtkw"
+[timestart] 1771000
+[size] 1340 761
+[pos] -1 -1
+*-19.450764 3246000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_top.
+[treeopen] tb_top.top.
+[treeopen] tb_top.top.norbus.
+[sst_width] 297
+[signals_width] 198
+[sst_expanded] 1
+[sst_vpaned_height] 214
+@28
+tb_top.rst_i
+tb_top.clk_i
+@200
+-
+@28
+tb_top.pad_spi_sce_i
+tb_top.pad_spi_sck_i
+@22
+tb_top.top.pad_spi_io_i[3:0]
+tb_top.top.pad_spi_io_o[3:0]
+@28
+tb_top.pad_spi_io_oe
+@200
+-
+@28
+tb_top.top.qspi_ctrl.txnreset_sync
+tb_top.top.qspi_ctrl.wstb_pe
+tb_top.top.qspi_ctrl.spi_state[2:0]
+@200
+-
+@28
+tb_top.top.qspi_ctrl.wb_read_req
+tb_top.top.qspi_ctrl.wb_write_req
+tb_top.top.qspi_ctrl.wb_req
+@200
+-
+@28
+tb_top.top.qspi_ctrl.pipe_fifo_full
+tb_top.top.qspi_ctrl.pipe_fifo_empty
+tb_top.top.qspi_ctrl.pipe_fifo_wr
+tb_top.top.qspi_ctrl.pipe_fifo_rd
+@22
+tb_top.top.qspi_ctrl.pipe_fifo_filled[4:0]
+tb_top.top.qspi_ctrl.pipe_inflight[4:0]
+tb_top.top.qspi_ctrl.pipe_total[4:0]
+@28
+tb_top.top.qspi_ctrl.inflight_empty
+tb_top.top.qspi_ctrl.pipeline_full
+@200
+-
+@28
+tb_top.top.norbus.wb_cyc_i
+tb_top.top.norbus.wb_stb_i
+tb_top.top.norbus.wb_we_i
+@22
+tb_top.top.norbus.wb_adr_i[25:0]
+tb_top.top.norbus.wb_dat_i[15:0]
+tb_top.top.norbus.wb_dat_o[15:0]
+@28
+tb_top.top.norbus.wb_stall_o
+tb_top.top.norbus.wb_ack_o
+tb_top.top.norbus.wb_err_o
+@200
+-
+@28
+tb_top.top.norbus.cyc_read
+@29
+tb_top.top.norbus.mod_reset
+@200
+-
+@22
+tb_top.top.norbus.nor_bus_driver.req_i[42:0]
+tb_top.top.norbus.nor_bus_driver.req_next_i[42:0]
+@28
+tb_top.top.norbus.nor_bus_driver.req_valid_i[1:0]
+@2028
+^1 /home/amedcalf/nisoc-rtl/bridge-yolo/sim/nor_bus_driver_states.txt
+tb_top.top.norbus.nor_bus_driver.state[2:0]
+@28
+tb_top.top.norbus.nor_bus_driver.busy_o
+@22
+tb_top.top.norbus.nor_bus_driver.data_o[15:0]
+@28
+tb_top.top.norbus.nor_bus_driver.ack_o
+tb_top.nor_ce_o
+tb_top.nor_oe_o
+tb_top.nor_we_o
+tb_top.nor_ry_i
+@22
+tb_top.nor_addr_o[25:0]
+tb_top.nor_data_o[15:0]
+@28
+tb_top.nor_data_oe
+@22
+tb_top.nor_data_i[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Tue Oct  3 17:54:37 2023
+[*] Tue Dec 19 16:56:01 2023
 [*]
-[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_nor_bus.vcd"
-[dumpfile_mtime] "Tue Oct  3 17:53:46 2023"
-[dumpfile_size] 24724
-[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_nor_bus.gtkw"
-[timestart] 0
+[dumpfile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_nor_bus.vcd"
+[dumpfile_mtime] "Tue Dec 19 16:47:45 2023"
+[dumpfile_size] 538227
+[savefile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_nor_bus.gtkw"
+[timestart] 10676400
 [size] 1535 801
 [pos] -1 -1
-*-18.331827 78150 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.331827 10780000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_nor_bus.
 [treeopen] tb_nor_bus.norbus.
 [sst_width] 297
@@ -17,49 +17,30 @@
 [sst_expanded] 1
 [sst_vpaned_height] 228
 @28
-tb_nor_bus.norbus.wb_clk_i
-tb_nor_bus.norbus.wb_rst_i
+tb_nor_bus.rst_i
+tb_nor_bus.clk_i
 @200
 -
 @28
-tb_nor_bus.norbus.wb_cyc_i
-tb_nor_bus.norbus.wb_stb_i
-tb_nor_bus.norbus.wb_we_i
+tb_nor_bus.memwb_cyc_i
+tb_nor_bus.memwb_stb_i
+tb_nor_bus.memwb_we_i
 @22
-tb_nor_bus.norbus.wb_adr_i[25:0]
-tb_nor_bus.norbus.wb_dat_i[15:0]
+tb_nor_bus.memwb_adr_i[25:0]
+tb_nor_bus.memwb_dat_i[15:0]
+tb_nor_bus.memwb_dat_o[15:0]
 @28
-tb_nor_bus.norbus.wb_stall_o
-@22
-tb_nor_bus.norbus.wb_dat_o[15:0]
-@28
-tb_nor_bus.norbus.wb_ack_o
-@200
--
-@22
-tb_nor_bus.norbus.request_fifo.wrp[5:0]
-tb_nor_bus.norbus.request_fifo.rdp[5:0]
-@24
-tb_nor_bus.norbus.request_fifo.filled[5:0]
-@28
-tb_nor_bus.norbus.request_fifo.full_o
-tb_nor_bus.norbus.request_fifo.empty_o
-tb_nor_bus.norbus.request_fifo.write
-tb_nor_bus.norbus.request_fifo.read
-@22
-tb_nor_bus.norbus.request_fifo.wr_data_i[47:0]
-tb_nor_bus.norbus.request_fifo.rd_data_o[47:0]
+tb_nor_bus.memwb_stall_o
+tb_nor_bus.memwb_ack_o
+tb_nor_bus.memwb_err_o
 @200
 -
 @28
-tb_nor_bus.norbus.req_load
-tb_nor_bus.norbus.fifo_read
-tb_nor_bus.norbus.req_load_q
-tb_nor_bus.norbus.fifo_read_q
+tb_nor_bus.norbus.nor_bus_driver.rst_i
+@22
+tb_nor_bus.norbus.req_data1[42:0]
 @23
-tb_nor_bus.norbus.req_data1[47:0]
-@22
-tb_nor_bus.norbus.req_data0[47:0]
+tb_nor_bus.norbus.req_data0[42:0]
 @28
 tb_nor_bus.norbus.req_dv[1:0]
 @200

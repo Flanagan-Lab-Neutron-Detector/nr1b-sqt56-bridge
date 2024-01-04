@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Oct  7 04:24:38 2023
+[*] Tue Dec 19 22:47:03 2023
 [*]
-[dumpfile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_phy.vcd"
-[dumpfile_mtime] "Sat Oct  7 04:21:45 2023"
-[dumpfile_size] 838743
-[savefile] "/home/amedcalf/nisoc-rtl/nr1b-sqt56-bridge/sim/tb_xspi_phy.gtkw"
-[timestart] 0
-[size] 1418 758
-[pos] -1 -1
-*-19.421343 1916000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_xspi_phy.vcd"
+[dumpfile_mtime] "Tue Dec 19 22:39:53 2023"
+[dumpfile_size] 904050
+[savefile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_xspi_phy.gtkw"
+[timestart] 428326000
+[size] 1920 973
+[pos] -27 -24
+*-18.421343 430615067 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_xspi_phy.
 [sst_width] 297
-[signals_width] 174
+[signals_width] 294
 [sst_expanded] 1
-[sst_vpaned_height] 213
+[sst_vpaned_height] 288
 @28
 tb_xspi_phy.rst_i
 tb_xspi_phy.clk_i
@@ -23,18 +23,12 @@ tb_xspi_phy.clk_i
 @28
 tb_xspi_phy.sce_i
 tb_xspi_phy.sck_i
-@22
-tb_xspi_phy.sio_i[7:0]
-tb_xspi_phy.sio_o[7:0]
-@28
 tb_xspi_phy.sio_oe
 @200
 -
 @28
-tb_xspi_phy.txnmode[1:0]
 tb_xspi_phy.txndir
 @22
-tb_xspi_phy.txnbc[5:0]
 tb_xspi_phy.txndata_miso[31:0]
 tb_xspi_phy.txndata_mosi[31:0]
 @28
@@ -46,29 +40,41 @@ tb_xspi_phy.qspi_ctrl.spi_state[2:0]
 tb_xspi_phy.qspi_ctrl.wstb
 tb_xspi_phy.qspi_ctrl.wstb_pe
 @22
+tb_xspi_phy.qspi_ctrl.cmd_q[7:0]
+@28
+tb_xspi_phy.qspi_ctrl.cmd_is_write
+tb_xspi_phy.qspi_ctrl.bus_is_cfg
+@22
 tb_xspi_phy.qspi_ctrl.addr_q[25:0]
+tb_xspi_phy.qspi_ctrl.addr_ctrl_q[5:0]
+tb_xspi_phy.qspi_ctrl.data_q[15:0]
+@28
+tb_xspi_phy.qspi_ctrl.cfg_req_read
+@29
+tb_xspi_phy.qspi_ctrl.cfg_req_write
 @200
 -
 @28
-tb_xspi_phy.qspi_ctrl.fifo_full
-tb_xspi_phy.qspi_ctrl.fifo_empty
-tb_xspi_phy.qspi_ctrl.fifo_wr
-tb_xspi_phy.qspi_ctrl.fifo_rd
+tb_xspi_phy.cfgwb_rst_o
+tb_xspi_phy.cfgwb_cyc_o
+tb_xspi_phy.cfgwb_stb_o
+tb_xspi_phy.cfgwb_we_o
 @22
-tb_xspi_phy.qspi_ctrl.fifo_wr_data[15:0]
-@23
-tb_xspi_phy.qspi_ctrl.fifo_rd_data[15:0]
+tb_xspi_phy.cfgwb_adr_o[15:0]
+tb_xspi_phy.cfgwb_dat_o[15:0]
+tb_xspi_phy.cfgwb_dat_i[15:0]
+@28
+tb_xspi_phy.cfgwb_stall_i
+tb_xspi_phy.cfgwb_ack_i
+tb_xspi_phy.cfgwb_err_i
 @200
 -
 @28
-tb_xspi_phy.wb_cyc_o
-tb_xspi_phy.wb_stb_o
-tb_xspi_phy.wb_we_o
-tb_xspi_phy.wb_stall_i
-tb_xspi_phy.wb_ack_i
-@22
-tb_xspi_phy.wb_adr_o[31:0]
-tb_xspi_phy.wb_dat_o[15:0]
-tb_xspi_phy.wb_dat_i[15:0]
+tb_xspi_phy.memwb_cyc_o
+tb_xspi_phy.memwb_stb_o
+tb_xspi_phy.memwb_we_o
+tb_xspi_phy.memwb_ack_i
+@200
+-
 [pattern_trace] 1
 [pattern_trace] 0

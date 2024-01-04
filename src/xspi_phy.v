@@ -15,14 +15,14 @@ module xspi_phy_io #(
 ) (
     // pad signals
     input        i_pad_sck, i_pad_sce,
-    input  [7:0] i_pad_sio,
-    output [7:0] o_pad_sio,
+    input  [3:0] i_pad_sio,
+    output [3:0] o_pad_sio,
     output       o_pad_sio_oe,
 
     // module signals
     output       o_sck, o_sce,
-    output [7:0] o_sio,
-    input  [7:0] i_sio,
+    output [3:0] o_sio,
+    input  [3:0] i_sio,
     input        i_sio_oe // 0 = input, 1 = output
 );
     assign o_pad_sio_oe = i_sio_oe;
@@ -74,13 +74,12 @@ module xspi_phy_slave #(
     // QSPI interface
     input                             sck_i,
     input                             sce_i,
-    input                       [7:0] sio_i,
-    output reg                  [7:0] sio_o,
+    input                       [3:0] sio_i,
+    output reg                  [3:0] sio_o,
     output                            sio_oe,    // 0 = input, 1 = output
 
     // transaction interface
     input      [CYCLE_COUNT_BITS-1:0] txnbc_i,   // transaction bit count
-    input                       [1:0] txnmode_i, // transaction mode, 00 = single SPI, 01 = dual SPI, 10 = quad SPI, 11 = octo SPI
     input                             txndir_i,  // transaction direction, 0 = read, 1 = write
     input             [WORD_SIZE-1:0] txndata_i,
     output reg        [WORD_SIZE-1:0] txndata_o,
@@ -92,7 +91,7 @@ module xspi_phy_slave #(
     reg  [CYCLE_COUNT_BITS-1:0] cycle_counter;
     reg  [CYCLE_COUNT_BITS-1:0] txn_cycles; // calculated cycles for given txnbc_i
     wire [CYCLE_COUNT_BITS-1:0] outdata_index; // index of SPI word to present
-    reg                   [2:0] bc_odd_mask; // mask low bits for extra cycle check
+    //wire                  [2:0] bc_odd_mask; // mask low bits for extra cycle check
     wire                        sce_i_b; // negative sce so we can trigger on posedge for reset
     wire                        cycle_stb;
 
@@ -105,15 +104,12 @@ module xspi_phy_slave #(
     // calculate SPI cycles from bit count
     // an extra cycle is added if txnbc_i does not fit evenly into the
     // configured cycle width (i.e. txnbc_i mod 2**txnmode_i != 0)
-    always @(*) case(txnmode_i)
-        2'b00: bc_odd_mask = 3'b000;
-        2'b01: bc_odd_mask = 3'b001;
-        2'b10: bc_odd_mask = 3'b011;
-        2'b11: bc_odd_mask = 3'b111;
-    endcase
+    //assign bc_odd_mask = 3'b011;
     //assign txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
+    //always @(*)
+    //    txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
     always @(*)
-        txn_cycles = (txnbc_i >> txnmode_i) + (|(bc_odd_mask & txnbc_i[2:0]) ? 'b1 : 'b0) - 'b1;
+        txn_cycles = (txnbc_i >> 2'b10) + (|(txnbc_i[1:0]) ? 'b1 : 'b0) - 'b1;
 
     // cycle counter
     always @(negedge sck_i or negedge sce_i)
@@ -133,20 +129,10 @@ module xspi_phy_slave #(
     // SPI
 
     // set SPI outputs combinationally to avoid deciding when to latch
-    always @(*) case(txnmode_i)
-        2'b00: sio_o = { 7'b0, txndata_i[1*outdata_index[WORD_SIZE_BITS-1:0]   ] };
-        2'b01: sio_o = { 6'b0, txndata_i[2*outdata_index[WORD_SIZE_BITS-1:0]+:2] };
-        2'b10: sio_o = { 4'b0, txndata_i[4*outdata_index[WORD_SIZE_BITS-1:0]+:4] };
-        2'b11: sio_o =         txndata_i[8*outdata_index[WORD_SIZE_BITS-1:0]+:8];
-    endcase
+    always @(*) sio_o = txndata_i[4*outdata_index[WORD_SIZE_BITS-1:0]+:4];
 
     always @(posedge sck_i) begin
-        case (txnmode_i)
-            2'b00: txndata_o <= { txndata_o[WORD_SIZE-2:0], sio_i[0:0] };
-            2'b01: txndata_o <= { txndata_o[WORD_SIZE-3:0], sio_i[1:0] };
-            2'b10: txndata_o <= { txndata_o[WORD_SIZE-5:0], sio_i[3:0] };
-            2'b11: txndata_o <= { txndata_o[WORD_SIZE-9:0], sio_i[7:0] };
-        endcase
+        txndata_o <= { txndata_o[WORD_SIZE-5:0], sio_i[3:0] };
     end
 
 `ifdef FORMAL
@@ -176,7 +162,6 @@ module xspi_phy_slave #(
     always @(*) assume(txnbc_i <= WORD_SIZE);
 
     reg [CYCLE_COUNT_BITS-1:0] f_txnbc;
-    reg                  [1:0] f_txnmode;
     reg                        f_txndir;
     reg        [WORD_SIZE-1:0] f_txndata;
 
@@ -184,7 +169,6 @@ module xspi_phy_slave #(
     always @(negedge sck_i)
         if (sce_i && f_sck_past_valid && (txndone_o || !$past(sce_i))) begin
             f_txnbc   <= txnbc_i;
-            f_txnmode <= txnmode_i;
             f_txndir  <= txndir_i;
             f_txndata <= txndata_i;
         end
@@ -204,7 +188,6 @@ module xspi_phy_slave #(
     always @(posedge f_clk) begin
         if (!sce_i || (f_g_past_valid && !$rose(txndone_o))) begin
             assume(txnbc_i   == f_txnbc);
-            assume(txnmode_i == f_txnmode);
             assume(txndir_i  == f_txndir);
             assume(txndata_i == f_txndata);
         end
@@ -222,41 +205,18 @@ module xspi_phy_slave #(
         end
 
     // mask for "extra" bits
-    reg [2:0] f_bcmask;
-    always @(*) case(f_txnmode)
-        2'b00: f_bcmask = 3'b000;
-        2'b01: f_bcmask = 3'b001;
-        2'b10: f_bcmask = 3'b011;
-        2'b11: f_bcmask = 3'b111;
-    endcase
+    wire [2:0] f_bcmask;
+    assign f_bcmask = 3'b011;
 
     // spi input words should be shifted into txndata_o
     // first spi word is MSW, last is LSW
     genvar txndi;
     generate
-    // txnmode_i = 00
-    for (txndi=0; txndi < WORD_SIZE; txndi = txndi + 1) begin
-        always @(negedge sck_i)
-            if ((txndi < f_cc) && f_txnmode == 2'b00 && !sce_i && f_sck_past_valid)
-                    assert(txndata_o[1*txndi]    == $past(sio_i[0:0], txndi));
-    end
-    // txnmode_i = 01
-    for (txndi=0; txndi < (WORD_SIZE/2); txndi = txndi + 1) begin
-        always @(negedge sck_i)
-            if ((txndi < f_cc) && f_txnmode == 2'b01 && !sce_i && f_sck_past_valid)
-                    assert(txndata_o[2*txndi:+2] == $past(sio_i[1:0], txndi));
-    end
     // txnmode_i = 10
     for (txndi=0; txndi < (WORD_SIZE/4); txndi = txndi + 1) begin
         always @(negedge sck_i)
-            if ((txndi < f_cc) && f_txnmode == 2'b10 && !sce_i && f_sck_past_valid)
+            if ((txndi < f_cc) /*&& f_txnmode == 2'b10*/ && !sce_i && f_sck_past_valid)
                     assert(txndata_o[4*txndi:+4] == $past(sio_i[3:0], txndi));
-    end
-    // txnmode_i = 11
-    for (txndi=0; txndi < (WORD_SIZE/8); txndi = txndi + 1) begin
-        always @(negedge sck_i)
-            if ((txndi < f_cc) && f_txnmode == 2'b11 && !sce_i && f_sck_past_valid)
-                    assert(txndata_o[8*txndi:+8] == $past(sio_i[7:0], txndi));
     end
     endgenerate
 
@@ -264,29 +224,11 @@ module xspi_phy_slave #(
     // first spi word is MSW, last is LSW
     genvar sioi;
     generate
-    // txnmode_i = 00
-    for (sioi=0; sioi < WORD_SIZE; sioi = sioi + 1) begin
-        always @(negedge sck_i)
-            if ((sioi < f_cc) && f_txnmode == 2'b00 && !sce_i && f_sck_past_valid)
-                    assert(f_txndata[1*sioi]    == $past(sio_o[0:0], sioi));
-    end
-    // txnmode_i = 01
-    for (sioi=0; sioi < (WORD_SIZE/2); sioi = sioi + 1) begin
-        always @(negedge sck_i)
-            if ((sioi < f_cc) && f_txnmode == 2'b01 && !sce_i && f_sck_past_valid)
-                    assert(f_txndata[2*sioi:+2] == $past(sio_o[1:0], sioi));
-    end
     // txnmode_i = 10
     for (sioi=0; sioi < (WORD_SIZE/4); sioi = sioi + 1) begin
         always @(negedge sck_i)
-            if ((sioi < f_cc) && f_txnmode == 2'b10 && !sce_i && f_sck_past_valid)
+            if ((sioi < f_cc) /*&& f_txnmode == 2'b10*/ && !sce_i && f_sck_past_valid)
                     assert(f_txndata[4*sioi:+4] == $past(sio_o[3:0], sioi));
-    end
-    // txnmode_i = 11
-    for (sioi=0; sioi < (WORD_SIZE/8); sioi = sioi + 1) begin
-        always @(negedge sck_i)
-            if ((sioi < f_cc) && f_txnmode == 2'b11 && !sce_i && f_sck_past_valid)
-                    assert(f_txndata[8*sioi:+8] == $past(sio_o[7:0], sioi));
     end
     endgenerate
 
@@ -311,16 +253,16 @@ c_txnw:     cover(txndone_cond && !txndir_i); // a write transaction should comp
 c_txnwnz:   cover(txndone_cond && !txndir_i && (txndata_o[txnbc_i-1:0] != 'b0)); // a nonzero write transaction should complete
 c_txnr:     cover(txndone_cond &&  txndir_i); // a read transaction should complete
 c_txnrnz:   cover(txndone_cond &&  txndir_i && (txndata_i[txnbc_i-1:0] != 'b0)); // a nonzero read transaction should complete
-c_txnm00:   cover(txndone_cond && (txnmode_i == 2'b00)); // a single-spi transaction should complete
-c_txnm01:   cover(txndone_cond && (txnmode_i == 2'b01)); // a dual-spi transaction should complete
-c_txnm10:   cover(txndone_cond && (txnmode_i == 2'b10)); // a quad-spi transaction should complete
-c_txnm11:   cover(txndone_cond && (txnmode_i == 2'b11)); // an octo-spi transaction should complete
+//c_txnm00:   cover(txndone_cond && (txnmode_i == 2'b00)); // a single-spi transaction should complete
+//c_txnm01:   cover(txndone_cond && (txnmode_i == 2'b01)); // a dual-spi transaction should complete
+c_txnm10:   cover(txndone_cond /*&& (txnmode_i == 2'b10)*/); // a quad-spi transaction should complete
+//c_txnm11:   cover(txndone_cond && (txnmode_i == 2'b11)); // an octo-spi transaction should complete
 c_txnce:    cover(txndone_cond && !|(f_bcmask & txnbc_i[2:0])); // a transaction should complete with an "even" number of cycles
 c_txnco:    cover(txndone_cond &&  |(f_bcmask & txnbc_i[2:0])); // a transaction should complete with an "odd" number of cycles
-c_txnfwm00: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b00) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 00
-c_txnfwm01: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b01) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 01
-c_txnfwm10: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b10) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 10
-c_txnfwm11: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b11) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 11
+//c_txnfwm00: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b00) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 00
+//c_txnfwm01: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b01) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 01
+c_txnfwm10: cover(txndone_cond && (txnbc_i == WORD_SIZE) /*&& (txnmode_i == 2'b10)*/ && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 10
+//c_txnfwm11: cover(txndone_cond && (txnbc_i == WORD_SIZE) && (txnmode_i == 2'b11) && (txndata_i[txnbc_i-1:0] != 'b0) && (txndata_o[txnbc_i-1:0] != 'b0)); // full word mode 11
 c_2t:       cover(f_txn_counter == 2);
 c_3t:       cover(f_txn_counter == 3);
 c_4t:       cover(f_txn_counter == 4);

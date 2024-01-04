@@ -2,7 +2,7 @@
 
 from typing import Union
 import cocotb
-from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer
+from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer, ReadOnly
 from array import array
 from enum import Enum
 
@@ -199,6 +199,7 @@ class nor_flash_behavioral_x16:
                 self.log("[flash] IDLE wait for request")
                 #await First(FallingEdge(bus['we']), FallingEdge(bus['oe']))
                 await FallingEdge(bus['ce'])
+                await ReadOnly()
                 self.log(f"[flash] IDLE request ce={bus['ce'].value} oe={bus['oe'].value} we={bus['we'].value}")
                 if not bus['ce'].value: # we only care if CE is low TODO: fix this
                     assert bus['we'].value or bus['oe'].value # at most one should be asserted
@@ -227,7 +228,9 @@ class nor_flash_behavioral_x16:
                         self.if_state = self.bus_state.RECOVERY
                     elif not bus['oe'].value:
                         self.log(f"[flash] IDLE request read {int(bus['addr'].value):07X}h")
-                        await First(Timer(180, 'ns'), RisingEdge(bus['ce']), RisingEdge(bus['oe'])) # tACC worst case, or deselect
+                        await Timer(1, 'ns')
+                        bus['data_i'].value = 0
+                        await First(Timer(180-1, 'ns'), RisingEdge(bus['ce']), RisingEdge(bus['oe'])) # tACC worst case, or deselect
                         if not bus['ce'].value and not bus['oe'].value: # timer expired
                             # TODO: status data
                             if self.busy:
@@ -239,6 +242,7 @@ class nor_flash_behavioral_x16:
                             await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                             await Timer(1, 'ns') # just to be sure
                             while not bus['ce'].value and not bus['oe'].value: # address changed
+                                #self.log(f"[flash] READ address changed from {last_addr:X} to {int(bus['addr'].value)}")
                                 if (bus['addr'].value >> 3) == (last_addr >> 3):
                                     await Timer(25, 'ns') # tPACC
                                 else:
@@ -249,7 +253,7 @@ class nor_flash_behavioral_x16:
                                 if not bus['ce'].value or not bus['oe'].value:
                                     await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                                 await Timer(1, 'ns') # just to be sure
-                        self.if_state = self.bus_state.RECOVERY
+                        self.if_state = self.bus_state.IDLE
                     else:
                         self.log("[flash] request while busy")
             elif self.if_state == self.bus_state.RECOVERY:

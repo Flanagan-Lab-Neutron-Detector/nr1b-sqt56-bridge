@@ -2,6 +2,9 @@
  * Top module for NR1B-SQT56 / protocol bridge
  */
 
+`default_nettype none
+`timescale 1ns/10ps
+
 module top_hx8k (
     input  CLK,
 
@@ -115,7 +118,7 @@ module top_hx8k (
 
     // QSPI pins
 
-    wire [7:0] qspi_io_i, qspi_io_o;
+    wire [3:0] qspi_io_i, qspi_io_o;
     wire qspi_io_oe;
     /*
     assign qspi_io_i = { QSPI_IO0, QSPI_IO1, QSPI_IO2, QSPI_IO3 };
@@ -170,7 +173,7 @@ module top_hx8k (
         .D_IN_0(qspi_io_i[3])
     );
 
-    assign qspi_io_i[7:4] = 4'h0; // octal is not supported
+    //assign qspi_io_i[7:4] = 4'h0; // octal is not supported
 
     // NOR DQ
 
@@ -383,7 +386,9 @@ module top_hx8k (
     } = 'b0; // nor_addr[19:16];
     assign {
         IOL_9P,  IOL_9N,  IOL_5P,  IOL_5N
-    } = { nor_addr[1], nor_addr[0], nor_dq_i[1], nor_dq_i[0] };
+    //} = { qspi_io_i[3:0] };
+    } = { nor_addr[0], nor_dq_i[2], nor_dq_i[1], nor_dq_i[0] };
+    //} = { nor_dq_i[3], nor_dq_i[2], nor_dq_i[1], nor_dq_i[0] };
     // dbg_txnmiso[3:0];
     // qspi_io_i[3:0];
     // { nor_dq_i[7], nor_dq_i[2:0] }

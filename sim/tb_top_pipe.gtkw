@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Fri Dec 15 20:32:43 2023
+[*]
+[dumpfile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top.vcd"
+[dumpfile_mtime] "Fri Dec 15 20:32:30 2023"
+[dumpfile_size] 479890
+[savefile] "/home/amedcalf/nisoc-rtl/bridge-yolo/sim/tb_top_pipe.gtkw"
+[timestart] 183000
+[size] 1340 761
+[pos] -1 -1
+*-18.450764 906440 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_top.
+[treeopen] tb_top.top.
+[sst_width] 297
+[signals_width] 214
+[sst_expanded] 1
+[sst_vpaned_height] 214
+@28
+tb_top.rst_i
+tb_top.clk_i
+@200
+-
+@28
+tb_top.pad_spi_sce_i
+tb_top.pad_spi_sck_i
+@22
+tb_top.top.pad_spi_io_i[3:0]
+tb_top.top.pad_spi_io_o[3:0]
+@28
+tb_top.pad_spi_io_oe
+@200
+-
+@28
+tb_top.top.qspi_ctrl.wstb_pe
+tb_top.top.qspi_ctrl.wb_read_req
+tb_top.top.qspi_ctrl.wb_write_req
+@200
+-
+@28
+tb_top.top.qspi_ctrl.pipe_fifo_full
+tb_top.top.qspi_ctrl.pipe_fifo_empty
+tb_top.top.qspi_ctrl.pipe_fifo_wr
+@22
+tb_top.top.qspi_ctrl.pipe_fifo_wr_data[15:0]
+@28
+tb_top.top.qspi_ctrl.pipe_fifo_rd
+@22
+tb_top.top.qspi_ctrl.txndata_o[31:0]
+@24
+tb_top.top.qspi_ctrl.pipe_fifo_filled[4:0]
+tb_top.top.qspi_ctrl.pipe_inflight[4:0]
+@22
+tb_top.top.qspi_ctrl.pipe_total[4:0]
+@29
+tb_top.top.qspi_ctrl.pipeline_full
+@200
+-
+@28
+tb_top.top.qspi_ctrl.wb_cyc_o
+tb_top.top.qspi_ctrl.wb_stb_o
+tb_top.top.qspi_ctrl.wb_stall_i
+tb_top.top.qspi_ctrl.wb_ack_i
+@200
+-
+@28
+tb_top.top.norbus.nor_stall
+tb_top.nor_ce_o
+tb_top.nor_oe_o
+tb_top.nor_we_o
+tb_top.nor_ry_i
+@22
+tb_top.nor_addr_o[25:0]
+tb_top.nor_data_o[15:0]
+@28
+tb_top.nor_data_oe
+@22
+tb_top.nor_data_i[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

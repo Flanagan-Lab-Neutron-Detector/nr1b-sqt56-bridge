@@ -13,16 +13,24 @@ async def setup(dut):
     dut.sck_i.value = 0
     dut.sce_i.value = 0
     dut.sio_i.value = 0
-    dut.wb_ack_i.value = 0
-    dut.wb_stall_i.value = 0
-    dut.wb_ack_i.value = 0
-    dut.wb_dat_i.value = 0
-    dut.wb_adr_o.value = 0
-    dut.wb_dat_o.value = 0
+    dut.memwb_ack_i.value = 0
+    dut.memwb_stall_i.value = 0
+    dut.memwb_ack_i.value = 0
+    dut.memwb_dat_i.value = 0
+    #dut.memwb_adr_o.value = 0
+    #dut.memwb_dat_o.value = 0
+    dut.cfgwb_ack_i.value = 0
+    dut.cfgwb_stall_i.value = 0
+    dut.cfgwb_ack_i.value = 0
+    dut.cfgwb_dat_i.value = 0
+    dut.cfgwb_err_i.value = 0
+    #dut.cfgwb_adr_o.value = 0
+    #dut.cfgwb_dat_o.value = 0
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
-    T = 13.33 # ~75 MHz
+    #T = 13.33 # ~75 MHz
+    T = 11.90 # ~84 MHz
     #T = 11.11 # ~90 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
@@ -39,14 +47,14 @@ async def test_fast_read(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=2000, stall_cycles=4, log=dut._log.info))
 
@@ -65,14 +73,14 @@ async def test_slow_read(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     task = cocotb.start_soon(wb.slave_read_expect(bus_wb, 0x83, data=0x3456, timeout=10000, stall_cycles=2, log=dut._log.info))
@@ -84,26 +92,44 @@ async def test_slow_read(dut):
     await Join(task)
 
 @cocotb.test()
-async def test_cmd_translation(dut):
-    """Test command translation (erase sector)"""
+async def test_cmd_execution(dut):
+    """Test command execution (erase sector)"""
 
     await setup(dut)
 
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
-    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=2000, stall_cycles=4, log=dut._log.info))
 
-    await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=20, sce_pol=1, log=dut._log.info)
+    sa = 0x50000
+
+    expected = [
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (0x555, 0x80),
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (sa,    0x30),
+    ]
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(bus_wb, expected, timeout=10000, stall_cycles=4, log=dut._log.info))
+    #task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0xC050000, 0, timeout=2000, stall_cycles=4, log=dut._log.info))
+
+    #await qspi.erase_sect(dut.sio_i, dut.sck_i, dut.sce_i, 0x50000, freq=20, sce_pol=1, log=dut._log.info)
+    # send erase sequence
+    for t in expected:
+        a,d = t
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(300, 'ns')
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -117,14 +143,14 @@ async def test_clock_rate(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     # Frequency range in MHz
@@ -158,19 +184,35 @@ async def test_prog_word(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
-    task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0x08030000, 0xABCD, timeout=2000, stall_cycles=10, log=dut._log.info))
+    addr = 0x30000
+    data = 0xABCD
 
-    await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=20, sce_pol=1, log=dut._log.info)
+    expected = [
+        (0x555, 0xAA),
+        (0x2AA, 0x55),
+        (0x555, 0xA0),
+        (addr,  data),
+    ]
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(bus_wb, expected, timeout=10000, stall_cycles=10, log=dut._log.info))
+    #task = cocotb.start_soon(wb.slave_write_expect(bus_wb, 0x08030000, 0xABCD, timeout=2000, stall_cycles=10, log=dut._log.info))
+
+    #await qspi.prog_word(dut.sio_i, dut.sck_i, dut.sce_i, 0x30000, 0xABCD, freq=20, sce_pol=1, log=dut._log.info)
+    # send program sequence
+    for t in expected:
+        a,d = t
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(300, 'ns')
 
     await ClockCycles(dut.clk_i, 1)
     await Join(task)
@@ -184,14 +226,14 @@ async def test_page_prog(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     progwords = [
@@ -229,14 +271,14 @@ async def test_sequential_reads(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     pairs = [
@@ -293,7 +335,7 @@ async def test_sequential_reads(dut):
 
     # short stall
     task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=2, log=dut._log.info))
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=12.7, sce_pol=1, log=dut._log.info)
     for i,p in enumerate(pairs):
         _, w = p
         assert ret_val[i] == w
@@ -303,8 +345,8 @@ async def test_sequential_reads(dut):
     await Timer(100, 'ns')
 
     # no stall
-    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=0, log=dut._log.info))
-    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=20, sce_pol=1, log=dut._log.info)
+    task = cocotb.start_soon(wb.slave_read_multi_expect(bus_wb, pairs, timeout=2000*len(pairs), stall_cycles=1, log=dut._log.info))
+    ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, 0x100, len(pairs), freq=12.7, sce_pol=1, log=dut._log.info)
     for i,p in enumerate(pairs):
         _, w = p
         assert ret_val[i] == w
@@ -320,14 +362,14 @@ async def test_fast_read_mc(dut):
     bus_wb = {
           'clk': dut.clk_i,
           'rst': dut.rst_i,
-          'cyc': dut.wb_cyc_o,
-          'stb': dut.wb_stb_o,
-           'we': dut.wb_we_o,
-          'adr': dut.wb_adr_o,
-        'dat_o': dut.wb_dat_i,
-        'stall': dut.wb_stall_i,
-          'ack': dut.wb_ack_i,
-        'dat_i': dut.wb_dat_o
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
     }
 
     # stop dump
@@ -348,3 +390,65 @@ async def test_fast_read_mc(dut):
 
     await ClockCycles(dut.clk_i, 1)
 
+@cocotb.test()
+async def test_cfg_passthrough(dut):
+    """Test CFG WB bus"""
+
+    await setup(dut)
+
+    memwb = {
+          'clk': dut.clk_i,
+          'rst': dut.rst_i,
+          'cyc': dut.memwb_cyc_o,
+          'stb': dut.memwb_stb_o,
+           'we': dut.memwb_we_o,
+          'adr': dut.memwb_adr_o,
+        'dat_o': dut.memwb_dat_i,
+        'stall': dut.memwb_stall_i,
+          'ack': dut.memwb_ack_i,
+        'dat_i': dut.memwb_dat_o
+    }
+
+    cfgwb = {
+          'clk': dut.clk_i,
+          'rst': dut.cfgwb_rst_o,
+          'cyc': dut.cfgwb_cyc_o,
+          'stb': dut.cfgwb_stb_o,
+           'we': dut.cfgwb_we_o,
+          'adr': dut.cfgwb_adr_o,
+        'dat_o': dut.cfgwb_dat_i,
+        'stall': dut.cfgwb_stall_i,
+          'ack': dut.cfgwb_ack_i,
+        'dat_i': dut.cfgwb_dat_o
+    }
+
+    regs = [(0x0100, 0x0001), (0x0101, 0x0002), (0x0102, 0x0003)]
+
+    # fast read
+    task = cocotb.start_soon(wb.slave_read_multi_expect(cfgwb, regs, timeout=2000*len(regs), stall_cycles=1, log=dut._log.info))
+    for a,d in regs:
+        a = a | 0x80000000
+        ret_val = await qspi.read_fast(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, a, 1, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+        assert ret_val[0] == d
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
+
+    # slow read
+    task = cocotb.start_soon(wb.slave_read_multi_expect(cfgwb, regs, timeout=2000*len(regs), stall_cycles=1, log=dut._log.info))
+    for a,d in regs:
+        a = a | 0x80000000
+        ret_val = await qspi.read_slow(dut.sio_i, dut.sio_o, dut.sio_oe, dut.sck_i, dut.sce_i, a, 1, freq=6, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+        assert ret_val[0] == d
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)
+
+    task = cocotb.start_soon(wb.slave_write_multi_expect(cfgwb, regs, timeout=10000, stall_cycles=4, log=dut._log.info))
+    # send erase sequence
+    for a,d in regs:
+        a = a | 0x80000000
+        await qspi.write_through(dut.sio_i, dut.sck_i, dut.sce_i, a, d, freq=20, sce_pol=1, log=dut._log.info)
+        await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+    await Join(task)

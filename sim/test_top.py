@@ -3,14 +3,15 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer, with_timeout
 from test_helpers import nor, qspi
 
-spi_freq = 20
+spi_freq = 12.7 # 20
 
 async def setup(dut):
     """Setup DUT"""
 
     #T = 21.5 # 46.5 MHz
     #T = 15.15 # ~66 MHz
-    T = 13.33 # ~75 MHz
+    #T = 13.33 # ~75 MHz
+    T = 11.90 # ~84 MHz
     cocotb.start_soon(Clock(dut.clk_i, T, units="ns").start())
 
     dut.pad_spi_io_i.value = 0
@@ -46,15 +47,25 @@ async def test_read(dut):
             'ry': dut.nor_ry_i
     }
 
+    ad = [
+     (0*65536, 0x5432),
+     (1*65536, 0x6789),
+     (2*65536, 0x7654),
+     (3*65536, 0x89AB)
+    ]
+
     model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+    # pre-program values
+    for a,d in ad:
+        model.mem.program(a, d)
     nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
     await ClockCycles(dut.clk_i, 1)
 
     # test some reads
-    for i in range(4):
-        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 1024*64*i, 1, freq=spi_freq)
-        assert ret_val[0] == 0xFFFF
-        await ClockCycles(dut.clk_i, 1)
+    for a,d in ad:
+        ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, a, 1, freq=spi_freq)
+        assert ret_val[0] == d
+        await ClockCycles(dut.clk_i, 10)
 
     nor_task.kill()
 
@@ -84,7 +95,14 @@ async def test_program(dut):
     # send program
     pa = 0x0000400
     pd = 0x3456
-    await qspi.prog_word(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xA0, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
+    #await qspi.prog_word(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, pa, pd, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
 
     # now wait until ready with timeout at 100us
@@ -132,7 +150,7 @@ async def test_erase_sector(dut):
     # Sector erase busy time is typically 0.5s, so we set it to shorter here
     model.tbusy_erase_sector = 1000 # 1 us
 
-    sector_address = 1024*64*7
+    sector_address = 640 * 65536
     for i in range(32):
         model.mem.program(sector_address + i, i)
     data_str = ' '.join([f"{x:04X}" for x in model.mem.mem[sector_address:sector_address+i]])
@@ -142,9 +160,23 @@ async def test_erase_sector(dut):
     await ClockCycles(dut.clk_i, 1)
 
     # send erase
-    #await wb.write(wb_bus, c, 0x1234)
-    await qspi.erase_sect(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, freq=spi_freq)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x80, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, 0x30, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
+
+    # send erase
+    #await wb.write(wb_bus, c, 0x1234)
+    #await qspi.erase_sect(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, sector_address, freq=spi_freq)
+    #await ClockCycles(dut.clk_i, 1)
 
     await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
     await ClockCycles(dut.clk_i, 1)
@@ -212,8 +244,22 @@ async def test_erase_chip(dut):
     dut._log.info(f"{sa2:X}[0:32] = {{ {data_str} }}")
 
     # send erase
-    await qspi.erase_chip(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x80, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0xAA, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x2AA, 0x55, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x555, 0x10, freq=spi_freq, log=dut._log.info)
     await ClockCycles(dut.clk_i, 1)
+
+    # send erase
+    #await qspi.erase_chip(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    #await ClockCycles(dut.clk_i, 1)
 
     # wait for ready
     await with_timeout(RisingEdge(dut.nor_ry_i), 100, 'us')
@@ -326,7 +372,7 @@ async def test_vt_enter(dut):
 
     await ClockCycles(dut.clk_i, 10)
 
-@cocotb.test()
+@cocotb.test(skip=False)
 async def test_multi_read(dut):
     """Enter VT"""
 
@@ -361,3 +407,53 @@ async def test_multi_read(dut):
         assert w == exp, f"Word {i} = {w}, expected {exp}"
 
     await ClockCycles(dut.clk_i, 10)
+
+@cocotb.test(skip=False)
+async def test_nor_cfg_wait(dut):
+    """Read/write nor wait registers"""
+
+    await setup(dut)
+
+    nor_bus = {
+            'ce': dut.nor_ce_o,
+            'oe': dut.nor_oe_o,
+            'we': dut.nor_we_o,
+           'doe': dut.nor_data_oe,
+          'addr': dut.nor_addr_o,
+        'data_o': dut.nor_data_o,
+        'data_i': dut.nor_data_i,
+            'ry': dut.nor_ry_i
+    }
+
+    model = nor.nor_flash_behavioral_x16(1024*1024*64, 1024*64, log=dut._log.info)
+
+    # start nor state machine
+    nor_task = cocotb.start_soon(model.state_machine_func(nor_bus))
+    await ClockCycles(dut.clk_i, 1)
+
+    # pre program a word
+    addr = 1024*64 * 7
+    value = 0xABCD
+    model.mem.program(addr, value)
+
+    # reduce wait times to see garbage
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000101, 0x0202, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000102, 0x0202, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+
+    ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, addr, 1, freq=spi_freq)
+    assert ret_val[0] == 0
+
+    # restore wait times
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000101, 0x4F0E, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000102, 0x1115, freq=spi_freq, log=dut._log.info)
+    await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
+
+    ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, addr, 1, freq=spi_freq)
+    assert ret_val[0] == value
+
+    nor_task.kill()

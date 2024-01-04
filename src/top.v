@@ -5,6 +5,7 @@
  */
 
 `include "cmd_defs.vh"
+`include "busmap.vh"
 
 `default_nettype none
 `timescale 1ns/10ps
@@ -16,8 +17,8 @@ module top #(
     input reset_i, clk_i,
 
     // QSPI interface
-    input               [7:0] pad_spi_io_i,
-    output              [7:0] pad_spi_io_o,
+    input               [3:0] pad_spi_io_i,
+    output              [3:0] pad_spi_io_o,
     output                    pad_spi_io_oe,
     input                     pad_spi_sck_i,
     input                     pad_spi_sce_i,
@@ -43,27 +44,28 @@ module top #(
 );
 
     // SPI IO <-> SPI PHY
-    wire                [7:0] spi_io_i;
-    wire                [7:0] spi_io_o;
+    wire                [3:0] spi_io_i;
+    wire                [3:0] spi_io_o;
     wire                      spi_io_oe;
     wire                      spi_sck;
     wire                      spi_sce;
 
     // wb connecting qspi and nor controller
-    wire wb_ctrl_cyc, wb_ctrl_stb, wb_ctrl_we, wb_ctrl_err, wb_ctrl_ack, wb_ctrl_stall;
-    wire         [31:0] wb_ctrl_adr;
-    wire [DATABITS-1:0] wb_ctrl_dat_i;
-    wire [DATABITS-1:0] wb_ctrl_dat_o;
+    wire memwb_cyc, memwb_stb, memwb_we, memwb_err, memwb_ack, memwb_stall;
+    wire [ADDRBITS-1:0] memwb_adr;
+    wire [DATABITS-1:0] memwb_dat_i; // MOSI
+    wire [DATABITS-1:0] memwb_dat_o; // MISO
 
-    // wb connecting nor controller and nor driver
-    wire wb_nor_cyc, wb_nor_stb, wb_nor_we, wb_nor_err, wb_nor_ack, wb_nor_stall;
-    wire [ADDRBITS-1:0] wb_nor_adr;
-    wire [DATABITS-1:0] wb_nor_dat_i;
-    wire [DATABITS-1:0] wb_nor_dat_o;
+    // configuration wb
+    wire cfgwb_cyc, cfgwb_stb, cfgwb_we, cfgwb_err, cfgwb_ack, cfgwb_stall, cfgwb_rst;
+    wire [`CFGWBADDRBITS-1:0] cfgwb_adr;
+    wire [`CFGWBDATABITS-1:0] cfgwb_dat_i; // MOSI
+    // each slave must have its own data bus
+    wire [`CFGWBDATABITS-1:0] cfgwb_dat_nor_bus_o; // MISO from nor_bus
+    wire [`CFGWBDATABITS-1:0] cfgwb_dat_o = cfgwb_dat_nor_bus_o; // MISO
 
     reg         txndir, txndone;
-    reg   [1:0] txnmode;
-    reg   [5:0] txnbc;
+    reg   [7:0] txnbc;
     wire [31:0] txndata_mosi;
     reg  [31:0] txndata_miso;
 
@@ -95,52 +97,62 @@ module top #(
 
     xspi_phy_slave #(
         .WORD_SIZE(32),
-        .CYCLE_COUNT_BITS(6)
+        .CYCLE_COUNT_BITS(8)
     ) xspi_slave (
         .sck_i(spi_sck), .sce_i(spi_sce), .sio_oe(spi_io_oe), .sio_i(spi_io_i), .sio_o(spi_io_o),
-        .txnbc_i(txnbc), .txnmode_i(txnmode), .txndir_i(txndir), .txndata_i(txndata_mosi),
+        .txnbc_i(txnbc), .txndir_i(txndir), .txndata_i(txndata_mosi),
         .txndata_o(txndata_miso), .txndone_o(txndone)
     );
 
     qspi_ctrl_fsm #(
-        .ADDRBITS(26),
-        .DATABITS(16),
+        .MEMWBADDRBITS(`NORADDRBITS),
+        .MEMWBDATABITS(`NORDATABITS),
+        .CFGWBADDRBITS(`CFGWBADDRBITS),
+        .CFGWBDATABITS(`CFGWBDATABITS),
+        .SPICMDBITS(`SPI_CMD_BITS),
+        .SPIADDRBITS(`SPI_ADDR_BITS),
+        .SPIWAITCYCLES(`SPI_WAIT_CYC),
+        .SPIDATABITS(`SPI_DATA_BITS),
         .IOREG_BITS(32)
     ) qspi_ctrl (
         // general
         .reset_i(reset_i), .clk_i(clk_i),
         // spi slave
-        .txnbc_o(txnbc), .txnmode_o(txnmode), .txndir_o(txndir), .txndone_i(txndone),
+        .txnbc_o(txnbc), .txndir_o(txndir), .txndone_i(txndone),
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
         // control
         .vt_mode(vt_mode), .d_wstb(dbg_txndone),
-        // wb
-        .wb_cyc_o(wb_ctrl_cyc), .wb_stb_o(wb_ctrl_stb), .wb_we_o(wb_ctrl_we), .wb_err_i(wb_ctrl_err),
-        .wb_adr_o(wb_ctrl_adr), .wb_dat_o(wb_ctrl_dat_i), .wb_ack_i(wb_ctrl_ack), .wb_stall_i(wb_ctrl_stall),
-        .wb_dat_i(wb_ctrl_dat_o)
+        // mem wb
+        .memwb_cyc_o(memwb_cyc), .memwb_stb_o(memwb_stb), .memwb_we_o(memwb_we), .memwb_err_i(memwb_err),
+        .memwb_adr_o(memwb_adr), .memwb_dat_o(memwb_dat_i), .memwb_ack_i(memwb_ack), .memwb_stall_i(memwb_stall),
+        .memwb_dat_i(memwb_dat_o),
+        // cfg wb
+        .cfgwb_rst_o(cfgwb_rst),
+        .cfgwb_adr_o(cfgwb_adr), .cfgwb_dat_o(cfgwb_dat_i),
+        .cfgwb_we_o(cfgwb_we), .cfgwb_stb_o(cfgwb_stb), .cfgwb_cyc_o(cfgwb_cyc),
+        .cfgwb_err_i(cfgwb_err),
+        .cfgwb_ack_i(cfgwb_ack), .cfgwb_dat_i(cfgwb_dat_o), .cfgwb_stall_i(cfgwb_stall)
     );
 
-    wb_nor_controller #(.ADDRBITS(26), .DATABITS(16)) nor_ctrl (
-        .wb_rst_i(reset_i), .wb_clk_i(clk_i),
-
-        .wbs_adr_i(wb_ctrl_adr), .wbs_dat_i(wb_ctrl_dat_i),
-        .wbs_we_i(wb_ctrl_we), .wbs_stb_i(wb_ctrl_stb), .wbs_cyc_i(wb_ctrl_cyc),
-        .wbs_err_o(wb_ctrl_err), .wbs_ack_o(wb_ctrl_ack),
-        .wbs_dat_o(wb_ctrl_dat_o), .wbs_stall_o(wb_ctrl_stall),
-
-        .wbm_adr_o(wb_nor_adr), .wbm_dat_o(wb_nor_dat_o),
-        .wbm_we_o(wb_nor_we), .wbm_cyc_o(wb_nor_cyc), .wbm_stb_o(wb_nor_stb),
-        .wbm_err_i(wb_nor_err), .wbm_ack_i(wb_nor_ack),
-        .wbm_dat_i(wb_nor_dat_i), .wbm_stall_i(wb_nor_stall)
-    );
-
-    nor_bus #(.ADDRBITS(26), .DATABITS(16)) norbus (
-        .wb_rst_i(reset_i), .wb_clk_i(clk_i),
-        .wb_adr_i(wb_nor_adr), .wb_dat_i(wb_nor_dat_o),
-        .wb_we_i(wb_nor_we), .wb_stb_i(wb_nor_stb), .wb_cyc_i(wb_nor_cyc),
-        .wb_err_o(wb_nor_err),
-        .wb_ack_o(wb_nor_ack), .wb_dat_o(wb_nor_dat_i), .wb_stall_o(wb_nor_stall),
-
+    nor_bus #(
+        .MEMWBADDRBITS(`NORADDRBITS), .MEMWBDATABITS(`NORDATABITS),
+        .CFGWBADDRBITS(`CFGWBADDRBITS), .CFGWBDATABITS(`CFGWBDATABITS)
+    ) norbus (
+        // system
+        .sys_rst_i(reset_i), .sys_clk_i(clk_i),
+        // mem wb
+        .memwb_rst_i(reset_i),
+        .memwb_adr_i(memwb_adr), .memwb_dat_i(memwb_dat_i),
+        .memwb_we_i(memwb_we), .memwb_stb_i(memwb_stb), .memwb_cyc_i(memwb_cyc),
+        .memwb_err_o(memwb_err),
+        .memwb_ack_o(memwb_ack), .memwb_dat_o(memwb_dat_o), .memwb_stall_o(memwb_stall),
+        // cfg wb
+        .cfgwb_rst_i(cfgwb_rst),
+        .cfgwb_adr_i(cfgwb_adr), .cfgwb_dat_i(cfgwb_dat_i),
+        .cfgwb_we_i(cfgwb_we), .cfgwb_stb_i(cfgwb_stb), .cfgwb_cyc_i(cfgwb_cyc),
+        .cfgwb_err_o(cfgwb_err),
+        .cfgwb_ack_o(cfgwb_ack), .cfgwb_dat_o(cfgwb_dat_nor_bus_o), .cfgwb_stall_o(cfgwb_stall),
+        // nor
         .nor_ry_i(nor_ry_i), .nor_data_i(nor_data_i),
         .nor_data_o(nor_data_o), .nor_addr_o(nor_addr_o),
         .nor_ce_o(nor_ce_o), .nor_we_o(nor_we_int), .nor_oe_o(nor_oe_o),

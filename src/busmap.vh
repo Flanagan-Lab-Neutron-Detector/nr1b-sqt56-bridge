@@ -1,0 +1,66 @@
+/** busmap.vh
+ *
+ * Address map and bus widths
+ */
+
+// Buses
+
+// NOR
+`define NORADDRBITS   26
+`define NORDATABITS   16
+
+// SPI
+`define SPI_CMD_BITS  8
+`define SPI_ADDR_BITS 32
+`define SPI_WAIT_CYC  20
+`define SPI_DATA_BITS `NORDATABITS
+
+// Internal CFG WB
+`define CFGWBADDRBITS 16
+`define CFGWBDATABITS `NORDATABITS
+
+// Address masks (masks QSPI addr)
+`define NORADDRMASK   {(`NORADDRBITS){1'b1}} //32'h03FFFFFF
+`define CFGADDRMASK   {(`CFGWBADDRBITS){1'b1}} //32'h0000FFFF
+`define CTRLBIT       31 // SPI addr high bit. 0 = nor request, 1 = management request
+`define CTRLBITMASK   ('1 << `CTRLBIT)
+
+// CFG address maps
+
+`define CFGWBMODMASK  16'hFF00
+`define CFGWBREGMASK  15'h00FF
+
+// modules
+`define QSPIADDRBASE  16'h0000 // qspi_ctrl_frm
+`define NBUSADDRBASE  16'h0100 // nor_bus
+
+// QSPI regs
+`define R_QSPICTRL    16'h0001
+// R_QSPICTRL bits
+`define R_QSPICTRL_RPEN_MASK  16'h0001
+`define R_QSPICTRL_RPEN_SHIFT 0
+`define R_QSPICTRL_WPEN_MASK  16'h0002
+`define R_QSPICTRL_WPEN_SHIFT 1
+`define R_QSPICTRL_VTEN_MASK  16'h0004
+`define R_QSPICTRL_VTEN_SHIFT 2
+
+// NOR bus regs
+`define R_NBUSCTRL    16'h0100
+`define R_NBUSWAIT0   16'h0101
+`define R_NBUSWAIT1   16'h0102
+// R_NBUSCTRL
+`define R_NBUSCTRL_PGEN_MASK  16'h0001
+`define R_NBUSCTRL_PGEN_SHIFT 0
+`define R_NBUSCTRL_RST_VAL    ('b0 | ('b1 << `R_NBUSCTRL_PGEN_SHIFT))
+// R_NBUSWAIT0
+`define R_NBUSWAIT0_WRITE_WAIT_MASK    16'h00FF
+`define R_NBUSWAIT0_WRITE_WAIT_SHIFT   0
+`define R_NBUSWAIT0_READDLY_WAIT_MASK  16'hFF00
+`define R_NBUSWAIT0_READDLY_WAIT_SHIFT 8
+`define R_NBUSWAIT0_RST_VAL            ('b0 | ('d14 << `R_NBUSWAIT0_WRITE_WAIT_SHIFT) | ('d79 << `R_NBUSWAIT0_READDLY_WAIT_SHIFT))
+// R_NBUSWAIT1
+`define R_NBUSWAIT1_READ_WAIT_MASK     16'h00FF
+`define R_NBUSWAIT1_READ_WAIT_SHIFT    0
+`define R_NBUSWAIT1_READPG_WAIT_MASK   16'hFF00
+`define R_NBUSWAIT1_READPG_WAIT_SHIFT  8
+`define R_NBUSWAIT1_RST_VAL            ('b0 | ('d21 << `R_NBUSWAIT1_READ_WAIT_SHIFT) | ('d17 << `R_NBUSWAIT1_READPG_WAIT_SHIFT))

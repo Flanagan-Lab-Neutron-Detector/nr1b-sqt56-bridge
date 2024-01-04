@@ -1,0 +1,18 @@
+[tasks]
+cover
+bmc
+
+[options]
+cover: mode cover
+bmc:   mode bmc
+depth 20
+
+[engines]
+smtbmc
+
+[script]
+read -formal -DFORMAL_QUEUE2_TOP=1 queue2.v
+prep -top queue2
+
+[files]
+../src/queue2.v
