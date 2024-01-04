@@ -172,17 +172,17 @@ module qspi_ctrl_fsm #(
         end
 
     // address counter
-    reg  [SPIADDRBITS-1:0] addr_counter;
-    wire [SPIADDRBITS-1:0] addr_reset = 'b0;
+    reg  [SPIADDRBITS-1:0] addr_count;
     wire [SPIADDRBITS-1:0] addr_latch_val = txndata_i;
     wire addr_latch = wstb_pe && (spi_state == SPI_STATE_ADDR);
     wire addr_inc   = memwb_stb_o;
-    always @(posedge clk_i)
-        if (reset_i)         addr_counter <= addr_reset;
-        else if (addr_latch) addr_counter <= addr_latch_val;
-        else if (addr_inc)   addr_counter <= addr_counter + 'b1;
-    assign addr_q = addr_counter[MEMWBADDRBITS-1:0];
-    assign addr_ctrl_q = addr_counter[SPIADDRBITS-1:MEMWBADDRBITS];
+    upcounter #(.BITS(SPIADDRBITS)) addr_counter (
+        .i_clk(clk_i), .i_rst(reset_i),
+        .i_load(addr_latch), .i_en(addr_inc),
+        .i_load_val(addr_latch_val), .o_count(addr_count)
+    );
+    assign addr_q = addr_count[MEMWBADDRBITS-1:0];
+    assign addr_ctrl_q = addr_count[SPIADDRBITS-1:MEMWBADDRBITS];
 
     // (wb) read/write request generation
 

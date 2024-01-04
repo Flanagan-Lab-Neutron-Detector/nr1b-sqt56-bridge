@@ -79,7 +79,7 @@ module top_hx8k (
     assign NOR_CE = nor_ce_o;
 
     assign IOB_73 = nor_we_o;
-    assign IOB_74 = dbg_txndone;
+    assign IOB_74 = 'b0; //dbg_txndone;
     assign IOB_87 = nor_oe_o;
     assign IOB_91 = nor_ce_o;
 
