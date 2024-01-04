@@ -1,6 +1,7 @@
 from typing import Tuple, Iterator, List
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, with_timeout, Join
 from cocotb import start_soon
+from .util import sigstr
 
 async def read(bus: dict, addr: int, timeout=0) -> int:
     if bus['cyc'].value:
@@ -64,7 +65,7 @@ async def multi_read(bus: dict, addrs: Iterator[int], timeout=0, log=lambda a: N
                 log(f"[multi_read.collect_data] {i}: awaiting ack")
                 await RisingEdge(ack)
                 await FallingEdge(clk)
-            log(f"[multi_read.collect_data] {i}: got dat={int(dat.value):04X}")
+            log(f"[multi_read.collect_data] {i}: got dat={sigstr(dat)}")
             data.append(dat.value)
             #await RisingEdge(clk)
             await ClockCycles(clk, 1, rising=False)
@@ -143,7 +144,7 @@ async def slave_read_expect(bus: dict, adr, data=0, timeout=0, stall_cycles=0, l
     await ClockCycles(bus['clk'], 1)
 
     #await FallingEdge(bus['clk']) # Assert on falling edge so everything is stable
-    #log(f"[slave_read_expect] got stb: adr={int(bus['adr'].value):X} (expected {int(adr):X})")
+    #log(f"[slave_read_expect] got stb: adr={sigstr(bus['adr'])} (expected {int(adr):X})")
     assert bus['cyc'].value == 1
     assert bus['we'].value == 0
     assert bus['adr'].value == adr
@@ -179,7 +180,7 @@ async def slave_read_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]],
         #await ClockCycles(bus['clk'], 1)
 
         await FallingEdge(bus['clk'])
-        log(f"[multi_expect] got a={int(bus['adr']):x}, send d={int(data):x}")
+        log(f"[multi_expect] got a={sigstr(bus['adr'])}, send d={int(data):x}")
         assert bus['cyc'].value == 1
         assert bus['we'].value == 0
         assert bus['adr'].value == adr
@@ -247,7 +248,7 @@ async def slave_write_multi_expect(bus: dict, adr_data: Iterator[Tuple[int,int]]
             else:
                 await trigger
         await FallingEdge(bus['clk'])
-        log(f"[multi_expect] got a={int(bus['adr']):x} d={int(bus['dat_i']):x}")
+        log(f"[multi_expect] got a={sigstr(bus['adr'])} d={sigstr(bus['dat_i'])}")
         assert bus['cyc'].value == 1
         assert bus['we'].value == 1
         assert bus['adr'].value == adr
@@ -283,10 +284,10 @@ async def slave_monitor(bus: dict, data=0, stall_cycles=0, log=lambda s: None):
             #log("[slave_stub] reset")
         elif bus['cyc'].value and bus['stb'].value and not bus['stall'].value:
             if bus['we'].value:
-                log(f"[slave stub] write {int(bus['dat_o'].value):x} to {int(bus['adr'].value):x}")
+                log(f"[slave stub] write {sigstr(bus['dat_o'])} to {sigstr(bus['adr'])}")
             else:
                 bus['dat_i'].value = data
-                log(f"[slave stub] read from {int(bus['adr'].value):x} result={int(bus['dat_i'].value):x}")
+                log(f"[slave stub] read from {sigstr(bus['adr'])} result={sigstr(bus['dat_i'])}")
             if stall_cycles > 0:
                 log(f"[slave stub] stalling for {stall_cycles} cycles")
                 bus['stall'].value = 1

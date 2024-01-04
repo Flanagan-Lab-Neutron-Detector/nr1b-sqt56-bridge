@@ -5,6 +5,7 @@ import cocotb
 from cocotb.triggers import Edge, RisingEdge, FallingEdge, ClockCycles, First, Timer, ReadOnly
 from array import array
 from enum import Enum
+from .util import bvstr, sigstr
 
 class nor_flash_array:
     """NOR flash memory array"""
@@ -227,7 +228,7 @@ class nor_flash_behavioral_x16:
                             await cocotb.start(unset_busy(wait_time))
                         self.if_state = self.bus_state.RECOVERY
                     elif not bus['oe'].value:
-                        self.log(f"[flash] IDLE request read {int(bus['addr'].value):07X}h")
+                        self.log(f"[flash] IDLE request read {sigstr(bus['addr'], fmt='07X')}h")
                         await Timer(1, 'ns')
                         bus['data_i'].value = 0
                         await First(Timer(180-1, 'ns'), RisingEdge(bus['ce']), RisingEdge(bus['oe'])) # tACC worst case, or deselect
@@ -236,20 +237,20 @@ class nor_flash_behavioral_x16:
                             if self.busy:
                                 raise Warning("status data is not yet implemented, reading memory")
                             bus['data_i'].value = self.read(int(bus['addr'].value))
-                            #self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
+                            #self.log(f"[flash] read @{sigstr(bus['addr'], fmt='07X')}h = {self.read(bus['addr'].value.integer)):04X}")
                             #self.log(f"[flash] IDLE request read wait for end")
-                            last_addr = int(bus['addr'].value)
+                            last_addr = bus['addr'].value
                             await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                             await Timer(1, 'ns') # just to be sure
                             while not bus['ce'].value and not bus['oe'].value: # address changed
-                                #self.log(f"[flash] READ address changed from {last_addr:X} to {int(bus['addr'].value)}")
+                                #self.log(f"[flash] READ address changed from {bvstr(last_addr, fmt='07X')} to {sigstr(bus['addr'], fmt='07X')}")
                                 if (bus['addr'].value >> 3) == (last_addr >> 3):
                                     await Timer(25, 'ns') # tPACC
                                 else:
                                     await Timer(180, 'ns') # tACC, worst case
-                                bus['data_i'].value = self.read(int(bus['addr'].value))
-                                #self.log(f"[flash] read @{int(bus['addr'].value):07X}h = {self.read(int(bus['addr'].value)):04X}")
-                                last_addr = int(bus['addr'].value)
+                                bus['data_i'].value = self.read(bus['addr'].value.integer)
+                                #self.log(f"[flash] read @{sigstr(bus['addr'], fmt='07X')}h = {self.read(bus['addr'].value.integer):04X}")
+                                last_addr = bus['addr'].value
                                 if not bus['ce'].value or not bus['oe'].value:
                                     await First(Edge(bus['addr']), RisingEdge(bus['ce']), RisingEdge(bus['oe']))
                                 await Timer(1, 'ns') # just to be sure

@@ -3,6 +3,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer, Join
 from typing import List
 from enum import Enum
+from .util import sigstr
 
 async def with_delay(coro: cocotb.Task or cocotb.Coroutine, delay, units: str = "step"):
     await Timer(delay, units)
@@ -32,7 +33,7 @@ async def spi_write_lsb(sio_i, sck, data: int, mode: SPI_MODE, cycles: int, init
         if i == 0 and init_wait > 0:
             await Timer(init_wait, 'ns')
         await FallingEdge(sck)
-        #log(f"[spi_write_lsb] cmd bit {i} = {int(sio.value):04X}h (?= {(cmd>>i)&0x01:04X}h)")
+        #log(f"[spi_write_lsb] cmd bit {i} = {sigstr(sio.value)}h (?= {(cmd>>i)&0x01:04X}h)")
 
 async def spi_write_msb(sio_i, sck, data: int, mode: SPI_MODE, cycles: int, init_wait=0) -> None:
     for i in range(cycles-1, -1, -1):
@@ -43,7 +44,7 @@ async def spi_write_msb(sio_i, sck, data: int, mode: SPI_MODE, cycles: int, init
         if i == cycles-1 and init_wait > 0:
             await Timer(init_wait, 'ns')
         await FallingEdge(sck)
-        #log(f"[spi_write_msb] cmd bit {i} = {int(sio.value):04X}h (?= {(cmd>>i)&0x01:04X}h)")
+        #log(f"[spi_write_msb] cmd bit {i} = {sigstr(sio.value)}h (?= {(cmd>>i)&0x01:04X}h)")
 
 spi_write = spi_write_msb
 
