@@ -64,7 +64,7 @@ async def test_read(dut):
     # test some reads
     for a,d in ad:
         ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, a, 1, freq=spi_freq)
-        assert ret_val[0] == d
+        assert ret_val[0] == d, f"Read failed at {a:07X}h: Got {ret_val[0]:04X}h, expected {d:04X}h"
         await ClockCycles(dut.clk_i, 10)
 
     nor_task.kill()
@@ -445,6 +445,8 @@ async def test_nor_cfg_wait(dut):
 
     ret_val = await qspi.read_fast(dut.pad_spi_io_i, dut.pad_spi_io_o, dut.pad_spi_io_oe, dut.pad_spi_sck_i, dut.pad_spi_sce_i, addr, 1, freq=spi_freq)
     assert ret_val[0] == 0
+    await Timer(100, 'ns')
+    await ClockCycles(dut.clk_i, 1)
 
     # restore wait times
     await qspi.write_through(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, 0x80000101, 0x4F0E, freq=spi_freq, log=dut._log.info)
