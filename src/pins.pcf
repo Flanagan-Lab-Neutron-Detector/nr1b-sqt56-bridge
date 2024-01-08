@@ -8,7 +8,7 @@ set_io -pullup yes FLASH_SCK      P12
 set_io FLASH_SS       P13
 set_io QSPI_CS        L4
 set_io QSPI_SCK       L5
-set_frequency QSPI_SCK 24
+set_frequency QSPI_SCK 50
 # IO0 and IO1 swapped on board
 set_io QSPI_IO0       M4
 set_io QSPI_IO1       M3
