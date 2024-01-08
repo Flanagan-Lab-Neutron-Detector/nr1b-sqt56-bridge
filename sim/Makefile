@@ -32,7 +32,10 @@ VERILOG_SOURCES = \
 	$(SRCDIR)/fsfifo.v \
 	$(SRCDIR)/sync2.v \
 	$(SRCDIR)/queue2.v \
-	$(SRCDIR)/upcounter.v
+	$(SRCDIR)/upcounter.v \
+	$(SRCDIR)/spi_state.vh \
+	$(SRCDIR)/qspi_if.v \
+	$(SRCDIR)/ctrl.v
 VERILOG_SOURCES += $(TB_DIR)/tb_$(TEST).v
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

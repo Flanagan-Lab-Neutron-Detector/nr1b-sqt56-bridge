@@ -18,7 +18,10 @@ V_SRC = \
 	$(SRCDIR)/fsfifo.v \
 	$(SRCDIR)/sync2.v \
 	$(SRCDIR)/queue2.v \
-	$(SRCDIR)/upcounter.v
+	$(SRCDIR)/upcounter.v \
+	$(SRCDIR)/spi_state.vh \
+	$(SRCDIR)/qspi_if.v \
+	$(SRCDIR)/ctrl.v
 export TOP   # expose to synth.tcl
 export V_SRC # expose to synth.tcl
 
