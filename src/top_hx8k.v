@@ -52,6 +52,10 @@ module top_hx8k (
     assign TP10 = 'b0; //sysclk;
     assign TP11 = locked;
 
+    // warm boot
+    wire passthrough_en;
+    SB_WARMBOOT warmboot (.BOOT(passthrough_en), .S1(1'b0), .S0(1'b1));
+
 	wire [15:0] nor_dq_i;
     reg  [15:0] nor_dq_o;
     reg nor_dq_oe;
@@ -410,6 +414,8 @@ module top_hx8k (
         .nor_addr_o(nor_addr), .nor_data_i(nor_dq_i), .nor_data_o(nor_dq_o),
         .nor_data_oe(nor_dq_oe), .nor_ry_i(NOR_RY_BY),
         .nor_ce_o(nor_ce_o), .nor_we_o(nor_we_o), .nor_oe_o(nor_oe_o),
+        // system control
+        .passthrough_en_o(passthrough_en),
         // debug
         .dbg_txnmode(dbg_txnmode), .dbg_txndir(dbg_txndir), .dbg_txndone(dbg_txndone),
         .dbg_txnbc(dbg_txnbc), .dbg_txnmosi(dbg_txnmosi), .dbg_txnmiso(dbg_txnmiso),

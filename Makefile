@@ -96,7 +96,7 @@ qspi-passthrough: $(PT_OUT_BIN)
 # combined
 
 $(COMB_OUT_BIN): $(OUT_BIN) $(PT_OUT_BIN)
-	icemulti -p0 -o $(COMB_OUT_BIN) $(OUT_BIN) $(PT_OUT_PIN) -v
+	icemulti -p0 -o $(COMB_OUT_BIN) $(OUT_BIN) $(PT_OUT_BIN) -v
 
 # main application
 

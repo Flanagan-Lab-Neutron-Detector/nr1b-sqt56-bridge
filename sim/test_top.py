@@ -459,3 +459,29 @@ async def test_nor_cfg_wait(dut):
     assert ret_val[0] == value
 
     nor_task.kill()
+
+@cocotb.test(skip=False)
+async def test_passthrough_enter(dut):
+    """Enter flash passthrough"""
+
+    await setup(dut)
+
+    nor_bus = {
+            'ce': dut.nor_ce_o,
+            'oe': dut.nor_oe_o,
+            'we': dut.nor_we_o,
+           'doe': dut.nor_data_oe,
+          'addr': dut.nor_addr_o,
+        'data_o': dut.nor_data_o,
+        'data_i': dut.nor_data_i,
+            'ry': dut.nor_ry_i
+    }
+
+    await Timer(1, 'us')
+    await ClockCycles(dut.clk_i, 1)
+    # send passthrough enter
+    await qspi.enter_passthrough(dut.pad_spi_io_i, dut.pad_spi_sck_i, dut.pad_spi_sce_i, freq=spi_freq)
+    await ClockCycles(dut.clk_i, 5)
+    assert dut.passthrough_en_o.value == 1
+
+    await ClockCycles(dut.clk_i, 10)

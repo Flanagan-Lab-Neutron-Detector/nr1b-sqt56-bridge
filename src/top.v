@@ -33,6 +33,9 @@ module top #(
     output reg                nor_oe_o,
     output reg                nor_data_oe, // 0 = input, 1 = output
 
+    // system control
+    output reg                passthrough_en_o,
+
     // debug
     output                    dbg_txndir, dbg_txndone,
     output              [1:0] dbg_txnmode,
@@ -122,6 +125,7 @@ module top #(
         .txndata_o(txndata_mosi), .txndata_i(txndata_miso), .txnreset_i(!spi_sce),
         // control
         .vt_mode(vt_mode), .d_wstb(dbg_txndone),
+        .passthrough_en_o(passthrough_en_o),
         // mem wb
         .memwb_cyc_o(memwb_cyc), .memwb_stb_o(memwb_stb), .memwb_we_o(memwb_we), .memwb_err_i(memwb_err),
         .memwb_adr_o(memwb_adr), .memwb_dat_o(memwb_dat_i), .memwb_ack_i(memwb_ack), .memwb_stall_i(memwb_stall),

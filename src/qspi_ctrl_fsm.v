@@ -35,6 +35,7 @@ module qspi_ctrl_fsm #(
 
     // controller requests
     output reg                        vt_mode,
+    output reg                        passthrough_en_o,
     // debug
     output                            d_wstb,
 
@@ -107,7 +108,7 @@ module qspi_ctrl_fsm #(
         .i_cfgwb_err(cfgwb_err_i), .i_cfgwb_ack(cfgwb_ack_i), .i_cfgwb_stall(cfgwb_stall_i),
         .i_cfgwb_dat(cfgwb_dat_i),
         // other
-        .o_vtmode(vt_mode)
+        .o_vtmode(vt_mode), .o_passthrough_en(passthrough_en_o)
     );
 
 endmodule

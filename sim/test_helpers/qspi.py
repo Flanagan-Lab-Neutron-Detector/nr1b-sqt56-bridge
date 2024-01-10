@@ -184,6 +184,15 @@ async def enter_vt(sio_i, sck, sce, freq: float=60, toff: float=0, sce_pol=0, lo
     await spi_frame_end(frame, sce, sck, sce_pol)
     log("[qspi.enter_vt] done")
 
+async def enter_passthrough(sio_i, sck, sce, freq: float=60, toff: float=0, sce_pol=0, log=lambda s: None) -> int:
+    frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
+
+    # command phase
+    await spi_write(sio_i, sck, 0xFC, SPI_MODE.QUAD, 2)
+
+    await spi_frame_end(frame, sce, sck, sce_pol)
+    log("[qspi.enter_passthrough] done")
+
 async def reset(sio_i, sck, sce, freq: float=60, sce_pol=0, log=lambda s: None) -> int:
     frame = await spi_frame_begin(freq, sce, sck, sce_pol, toff=toff)
 

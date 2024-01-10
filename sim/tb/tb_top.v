@@ -30,7 +30,9 @@ module tb_top (
     input  [15:0] nor_data_i,
     output [15:0] nor_data_o,
     output [25:0] nor_addr_o,
-    output        nor_ce_o, nor_we_o, nor_oe_o, nor_data_oe
+    output        nor_ce_o, nor_we_o, nor_oe_o, nor_data_oe,
+
+    output        passthrough_en_o
 );
 
 `ifdef VERILATOR
@@ -60,6 +62,8 @@ module tb_top (
         .nor_data_o(nor_data_o), .nor_addr_o(nor_addr_o),
         .nor_ce_o(nor_ce_o), .nor_we_o(nor_we_o), .nor_oe_o(nor_oe_o),
         .nor_data_oe(nor_data_oe),
+        // system control
+        .passthrough_en_o(passthrough_en_o),
         // debug
         .dbg_txnmode(), .dbg_txndir(), .dbg_txndone(),
         .dbg_txnbc(), .dbg_txnmiso(), .dbg_txnmosi(),

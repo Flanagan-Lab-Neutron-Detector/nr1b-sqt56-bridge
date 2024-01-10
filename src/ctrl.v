@@ -57,7 +57,8 @@ module ctrl #(
     input         [CFGWBDATABITS-1:0] i_cfgwb_dat,
     input                             i_cfgwb_stall,
 
-    output reg                        o_vtmode
+    output reg                        o_vtmode,
+    output reg                        o_passthrough_en
 );
 
     // VT override control
@@ -70,6 +71,13 @@ module ctrl #(
             else if (i_spicmd == `SPI_COMMAND_WRITE_THRU && i_spidata == 16'h00F0)
                 o_vtmode <= 'b0;
         end
+
+    // flash passthrough control
+    always @(posedge i_clk)
+        if (i_sysrst)
+            o_passthrough_en <= 'b0;
+        else if (i_spirst && i_spicmd == `SPI_COMMAND_ENTER_PASSTHROUGH)
+            o_passthrough_en <= 'b1;
 
     // address counter
     reg  [SPIADDRBITS-1:0]   addr_count;
